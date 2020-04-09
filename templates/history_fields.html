@@ -1,0 +1,289 @@
+{% extends 'layout.html' %} {% load static %}
+{% block left_conter %}
+    <div class="easyui-accordion" data-options="" style="height: 100%;padding:0">
+        <div class="panel-group" id="accordion" style="padding:0">
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <h4 class="panel-title">
+                        <a data-toggle="collapse" data-parent="#accordion" href="#collapseOne">批次</a>
+                    </h4>
+                </div>
+                <div id="collapseOne" class="collapse">
+                    <div id="collapse1" class="panel-body" style="overflow: auto;max-height: 300px">
+                        <form>
+                            {% for i in uploads %}
+                                <div class="active"><label><input type="radio" name="upload_id"
+                                                                  value={{ i|safe }}>批次{{ i }}</label></div>
+                            {% endfor %}
+                            <p><input type="submit" value="选择"></p>
+                        </form>
+                    </div>
+                </div>
+            </div><!--批次-->
+            <div class="panel panel-success">
+                <div class="panel-heading">
+                    <h4 class="panel-title">
+                        <a data-toggle="collapse" data-parent="#accordion" href="#collapseTwo">项目名</a>
+                    </h4>
+                </div>
+                <div id="collapseTwo" class="collapse">
+                    <div id="collapse2" class="panel-body">
+                        <b>已选批次：</b><br>
+                        <button class="btn btn-success" onclick="del_pro('pro_names')">清空所选项目</button>
+                        <button class="btn btn-primary" onclick="draw_checkbox()">选择</button>
+                        <div id="projects" style="max-height:285px;overflow:auto">
+                            {% for i in pro_names %}
+                                <div>
+                                    <label><input type="checkbox" name="pro_name" value="{{ i.name }}">{{ i.name }}
+                                    </label>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div><!--项目名-->
+            <div class="panel panel-info">
+                <div class="panel-heading">
+                    <h4 class="panel-title">
+                        <a data-toggle="collapse" data-parent="#accordion" href="#collapseThree">在线参数</a>
+                    </h4>
+                </div>
+                <div id="collapseThree" class="collapse">
+                    <div id="collapse3" class="panel-body" style="max-height:400px;padding-right: 0">
+                        <button class="btn btn-success" onclick="del_field('on')">清空所选字段</button>
+                        <button class="btn btn-primary" onclick="chosen_on()">选择</button>
+                        <div id="on_fields" style="max-height:300px;overflow:auto">
+                            {% for i in ons %}
+                                <div>
+                                    <label><input type="checkbox" name="on_fields" value="{{ i.chars }}">{{ i.meaning }}
+                                    </label>
+                                </div>
+                            {% endfor %}
+                        </div><!-- 在线参数容器-->
+                    </div>
+                </div>
+            </div><!--在线-->
+            <div class="panel panel-warning">
+                <div class="panel-heading">
+                    <h4 class="panel-title">
+                        <a data-toggle="collapse" data-parent="#accordion" href="#collapseFour">离线参数</a>
+                    </h4>
+                </div>
+                <div id="collapseFour" class="collapse">
+                    <div id="collapse4" class="panel-body" style="max-height:400px;padding-right: 0">
+                        <button type="submit" class="btn btn-success" onclick="del_field('off')">清空所选字段</button>
+                        <button class="btn btn-primary" onclick="chosen_off()">选择</button>
+                        <div id="off_fields" style="max-height:300px;overflow:auto">
+                            {% for i in offs %}
+                                <div>
+                                    <label><input type="checkbox" name="off_fields"
+                                                  value="{{ i.chars }}">{{ i.meaning }}
+                                    </label>
+                                </div>
+                            {% endfor %}
+                        </div><!-- 离线参数容器-->
+                    </div>
+                </div>
+            </div><!--离线-->
+            <div id="events"></div>
+        </div>
+    </div>
+{% endblock %} {# 重写菜单栏#}
+{% block checkbox %}
+    <div class="btn-group" id="dvCBs" style="background-color: white;width: 100%">
+        <div id="table" class='active' style="max-height:400px;width:100%;overflow:auto;resize:both;"></div>
+        <br>
+        <button class="btn-success" onclick="del_all()">清空所选字段</button>
+        <button class="btn-primary" onclick="create_graph()">绘制图表</button>
+    </div>
+{% endblock %}{#创建复选框#}
+{% block content %}
+    <title>历史参数聚类</title>
+    <style>
+        table {
+            border-collapse: collapse;
+        }
+
+        table, td, th {
+            border: 1px solid black;
+        }
+    </style>{#    设置表格样式#}
+    <script>
+        checkbox_save('dvCBs', 'input', 'vs');//保存复选框内容
+        function update_data(name, the_type) {
+            for (let i in field[the_type][name].pro_list) {
+                $.ajax({
+                    type: 'POST',
+                    url: "/his_field/",
+                    data: {field: name.toLowerCase(), the_type: the_type, pro_name:i},
+                    dataType: "json",
+                    traditional: true,
+                    async: true,
+                    success: function (data) {
+                        console.log(data);
+                        field[the_type][name].pro_list[i].range.min=data.min;
+                        field[the_type][name].pro_list[i].range.max=data.max;
+                        field[the_type][name].pro_list[i].series=data.data;
+
+                        let series =field[the_type][name].chart.get(i);
+                        let length = data.max-data.min;
+                        if(length>0){
+                            for(let j=0;j<field[the_type][name].pro_list[i].series.length;j++) {
+                                let value = (field[the_type][name].pro_list[i].series[j][1] - data.min) / length;
+                                series.addPoint([field[the_type][name].pro_list[i].series[j][0], value], false);
+                            }
+                            console.log(1)
+                        }
+                        else{
+                            for(let j=0;j<field[the_type][name].pro_list[i].series.length;j++) {
+                                series.addPoint(field[the_type][name].pro_list[i].series[j], false);
+                            }
+                            console.log(2)
+                        }
+                        field[the_type][name].chart.redraw();
+                        {#let length = field#}
+
+                    }
+                });
+            }
+        }
+
+        field = {
+            "on": {
+                {% for i in ons %}
+                    "{{ i.chars }}": {
+                        "field": "{{ i.chars }}",
+                        "field_name": "{{ i.meaning }}",
+                        pro_list: {},
+                        chart: {}
+                    },
+                {% endfor %}
+            },
+            "off": {
+                {% for i in offs %}
+                    "{{ i.chars }}": {
+                        "field": "{{ i.chars }}",
+                        "field_name": "{{ i.meaning }}",
+                        pro_list: {},
+                        chart: {}
+                    },
+                {% endfor %}
+            }
+        };
+        the_option1 = {
+            allowPointSelect: true,
+            chart: {zoomType: 'xy'},
+            xAxis: {
+                crosshair: {
+                    width: 2,
+                    color: 'green',
+                    dashStyle: 'shortdot'
+                },
+                scrollbar: {enabled: true},
+                minRange: 120,
+                min: 0,
+                minorTickInterval: 'auto',
+                startOnTick: true,
+                endOnTick: true
+            },
+            yAxis: {
+                crosshair: {
+                    width: 2,
+                    color: 'green',
+                    dashStyle: 'shortdot'
+                },
+                scrollbar: {enabled: true}
+            },
+            credits: {enabled: false},
+            legend: {
+                layout: 'vertical',
+                align: 'right',
+                verticalAlign: 'middle',
+                float: true,
+            },
+            tooltip: {
+                formatter: function () {
+                    //相对时间
+                    {#let relative = (this.x - Date.parse(mychart.begintime)) / 1000;#}
+                    let hour = parseInt(this.x / 3600);
+                    let min = parseInt(this.x % 3600 / 60);
+                    let sec = this.x % 60;
+                    let xIndex = this.point.index;
+                    let yIndex = this.series.index;
+                    //图表类型
+                    {#let type = this.series.chart.renderTo.id.split("_")[0];#}
+                    let type="";
+                    //项目名称
+                    let name = this.series.chart.renderTo.id;
+                    if(name in field.on)
+                        type='on';
+                    else type="off";
+                    console.log(type);
+                    return this.series.name + "<br>" + hour + "时" + min + "分" + sec + '秒' + "<br>" +
+                        this.y + "/" + field[type][name].pro_list[this.series.name].series[xIndex][1];
+                }
+            }
+        };
+
+        //数据更新函数
+        function gets(the_type = 'on') {
+            let data = ons;
+            if (the_type === 'off') data = offs;
+            for (let i = 0; i < data.length; i++) {
+                let name = data[i].chars;
+                let field_names = document.getElementsByName(data[i]['chars']);
+                {#console.log(field_names);#}
+                for (let j = 0; j < field_names.length; j++)
+                    if (field_names[j].checked)
+                        field[the_type][name].pro_list[field_names[j].className] = {
+                            range: {
+                                min: 0,
+                                max: 0
+                            },
+                            series: null
+                        };
+            }
+        } //获取 所选项目，字段
+        function create_graph() {
+            create('on');
+            create('off');
+        }//创建全部图表
+        function create(the_type = 'on') {
+
+            for (let f in field[the_type]) {
+                if (Object.keys(field[the_type][f].pro_list).length === 0) {
+                    continue;
+                }
+                //创建字段容器
+                $('#container').append('<div class="mydiv"><div id="' + f + '"></div></div>');
+                let series = [];
+                for (let key in field[the_type][f].pro_list) {
+                    series.push({
+                        name: key,
+                        data: [],
+                        dashStyle: 'Solid',
+                        id:key
+                    })
+                }
+                the_option1['title'] = {text: field[the_type][f].field_name};
+                the_option1['series'] = series;
+                //生成图表
+                field[the_type][f].chart = Highcharts.chart(f, the_option1);
+                //获取数据
+                update_data(f, the_type);
+
+            }
+        }//创建单类图表
+        setTimeout(function () {
+            cr_table('#table');
+            {#draw_pro('#projects');//项目#}
+            draw_field('on', '#on_fields');//在线
+            draw_field('off', '#off_fields');//离线
+            checkbox_save('collapse3', 'input', 'pro_on_fields');    //储存复选框选中的离线字段名
+            checkbox_save('collapse4', 'input', 'pro_off_fields');    //储存复选框选中的在线字段名
+            draw_checkbox();
+            gets("on");//获取复选框中的项目，字段
+            gets("off");
+        }, 1);//创建复选框
+    </script>
+{% endblock %}

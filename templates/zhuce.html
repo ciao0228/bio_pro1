@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录页面</title>
+    <link rel="stylesheet" type="text/css" href="../static/css/styles.css">
+
+    <!--[if IE]>
+        <script src="/static/js/html5shiv.min.js"></script>
+    <![endif]-->
+</head>
+<body>
+<div class="jq22-container" style="padding-top:100px">
+    <div class="login-wrap">
+        <div class="login-html">
+            <input id="tab-2" type="radio" name="tab" class="sign-up"><label for="tab-2" class="tab">注册</label>
+            <div class="login-form">
+                <form action="" method="post">
+                    <div class="sign-up-htm">
+
+
+                        {##}
+                        {# <div class="group">#}
+                        {#label for="username" class="label">用户名</label>#}
+                        {#<input id="user" type="text" class="input" placeholder="请在这里输入用户名" name="user">#}
+                        {# <span>{}</span>#}
+                        {# </div>#}
+                        {#div class="group">#}
+                        {#label for="password" class="label">密码</label>#}
+                        {# input id="pass" type="password" class="input" data-type="password" name="pwd" placeholder="请在这里输入密码">#}
+                        {# </div>#}
+                        {# div class="group">#}
+                        {#label for="password" class="label">确认输入密码</label>#}
+                        {# <input id="pass" type="password" class="input"  name="pwd" placeholder="请输入密码">#}
+                        {# </div>#}
+                        {#<div class="group">#}
+                        {# <label for="email" class="label">请输入邮箱</label>#}
+                        {#<input id="pass" type="text" class="input" placeholder="请在这里输入邮箱" name="email">#}
+                        {#</div>#}
+
+
+                        {% csrf_token %}
+                        {% for field in form %}
+                            <div class="group">
+                                <label for="">{{ field.label }}</label>
+                                {{ field }}
+                                <span class="error"></span>
+                            </div>
+                        {% endfor %}
+
+
+                        <div class="group">
+                            <input type="button" class="button zhuce_btn" value="注册" style="cursor: pointer">
+                        </div>
+                        <div class="hr"></div>
+                        <div class="foot-lnk">
+                            <label for="tab-1">会员专属通道</label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/static/ui/jquery.min.js"></script>
+<script>
+
+    $(".zhuce_btn").click(function () {
+
+        $.ajax({
+            url: "",
+            type: "post",
+            data: {
+                user: $("#id_user").val(),
+                pwd: $("#id_pwd").val(),
+                r_pwd: $("#id_r_pwd").val(),
+                email: $("#id_email").val(),
+                csrfmiddlewaretoken: $("[name='csrfmiddlewaretoken']").val()
+            },
+            success: function (res) {
+                {#注册成功#}
+                if (res.user) {
+                    location.href = "/login/"
+
+                } else {
+
+
+                    {#    先清除注册错误时的错误内容,#}
+                    $(".error").html("");
+                    // 移除属性,就是框边色
+                    $(".group").removeClass("has-error");
+
+                    //展示新错误
+                    $.each(res.err_msg, function (i, j) {
+                        {#循环,字符串拼接,渲染出来的input标签的id是id_user,错误信息添加到下面的span标签渲染#}
+                        $("#id_" + i).next().html(j[0]).css("color", "red").parent().addClass("has-error")
+                        // 同时在父类添加,表格样式has-error
+                    })
+
+                }
+            }
+        })
+    })
+
+</script>
+
+
+</body>
+</html>

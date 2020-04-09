@@ -1,0 +1,150 @@
+{% extends 'layout.html' %} {% load static %}  {% block content %}
+    {% if name %}
+        <iframe name="iframe" src="./container?name={{ name|safe }}">
+
+        </iframe>
+    {% endif %}
+    <title>{{ name }}实时分批</title>
+    <script>
+
+        function set_pro_value() {
+            document.getElementById('place').value = getCookie('place');
+            document.getElementById('serial').value = getCookie('serial');
+            document.getElementById('upload').value = getCookie('upload');
+            document.getElementById('type').value = getCookie('type');
+            document.getElementById('date').value = getCookie('date');
+        }//记录注册项目的填写信息
+        set_pro_value();
+
+    </script>
+{% endblock %}
+{% block checkbox %}
+
+{% endblock %}
+{% block left_conter %}
+    <script>
+        update_pro ={{ update_pro|safe }};//待更新项目
+        //关闭项目update_flag
+        function open_close(the_type = 'close') {
+            {#let chosen_name = getCookie('chosen_pro');#}
+            {#if (the_type === 'close') chosen_name = getCookie('open_list');#}
+            {#if (chosen_name.length === 0) return $.growl({title: "消息标题", message: '请选择要操作的项目'});#}
+            {#chosen_name = chosen_name.split(',');#}
+            let chosen_name = [];
+            for (let i = update_pro.length - 1; i >= 0; i--) {
+                if (document.getElementById(update_pro[i]).checked) {
+                    chosen_name.push(update_pro[i]);
+                    update_pro.splice(update_pro.indexOf(update_pro[i]), 1);
+                }
+            }
+            open_list();
+            $.ajax({
+                type: 'POST',
+                url: "/open_close/",
+                data: {chosen_name: chosen_name, type: the_type},
+                dataType: "json",
+                async: true,
+                success: function (data) {
+                    console.log(data);
+                }
+            })
+        }
+
+        //注册新项目，失败报错，成功创建新div
+        function register() {
+            let b = document.getElementById('place').value;
+            let c = document.getElementById('type').value;
+            let e = document.getElementById('upload').value;
+            let f = document.getElementById('date').value.split('-').join('_');
+            let g = document.getElementById('serial').value;
+            let h = b + '_' + c + '_' + e + '_' + f + '_' + g;
+            $.ajax({
+                type: 'POST',
+                url: "/create/",
+                data: {host: h, upload: b},
+                dataType: "json",
+                async: true,
+                success: function (data) {
+                    if (data['data'] === 1) return $.growl({title: "消息标题", message: '该项目已经存在'});
+                    {#alert(h);#}
+                    update_pro.push(h);//添加新项目
+                    open_list();
+                }
+            });
+            document.cookie = 'place=' + b;
+            document.cookie = 'type=' + c;
+            document.cookie = 'upload=' + e;
+            document.cookie = 'serial=' + g;
+        }
+
+        //已打开项目绘制
+        function open_list() {
+            let open_list = '';
+            for (let i = 0; i < update_pro.length; i++) {
+                open_list += "<label><input type='checkbox' id='" + update_pro[i] + "'></label>" +
+                    "<a href='?name=" + update_pro[i] + "'>" + update_pro[i] + "</a><br>"
+            }
+            document.getElementById("open_list").innerHTML = open_list;
+        }
+
+        //连接更新，获取数据按钮绘制
+        //连接触发按钮
+        function connect(type = '打开') {
+            //获取host
+            let address = $('#address').val();
+            //获取port
+            let ip = $('#ip').val();
+            //获取刷新频率
+            let rate = $('#rate').val();
+            $.ajax({
+                type: 'POST',
+                url: '/connect',
+                data: {type: type, address: address, ip: ip, rate: rate},
+                success: function (data) {
+                    $.growl.warning({title: '消息', message: data['message']});
+                }
+            })
+        }
+
+    </script>
+    <div data-options="region:'center'" id='pro_list' style="overflow: auto;max-height: 260px"></div>{# 新创建的项目名 #}
+    <span class="btn-group">
+        <button type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown">创建项目</button>
+        <span class="dropdown-menu">
+                <span>产品位置<label><input type="text" id="place" value="" required></label></span>
+                <br><span>罐型号:<label><input type="text" id="type" value="" required></label></span>
+                <br><span>批次:<label><input type="text" id="upload" value='' required></label></span>
+                <br>日期:<br><span><label><input name="date" type="date" id="date" style="width:100%"
+                                               required></label></span>
+                <br><span>序列号:<label><input type="text" id="serial" value="" required></label></span>
+                <br><span><button onclick="register()">注册</button></span>
+        </span>
+    </span>{#  创建项目的下拉菜单#}
+    <br><b>已打开项目</b>
+    <div data-options="region:'center'" id='open_list' style="overflow: auto;max-height: 280px">
+        {% for i in update_pro %}
+            <label><input type='checkbox' id="{{ i|safe }}"></label>
+            <a href='?name={{ i|safe }}'>{{ i|safe }}</a>
+            <br>
+
+        {% endfor %}
+        <!-- 已打开项目列表 -->
+    </div>
+    <button class="btn btn-primary" onclick=open_close('close')>关闭</button>
+    <script>
+        {#checkbox_save('pro_list', 'input', 'chosen_pro'); //储存创建的项目名#}
+        {#checkbox_save('open_list', 'input', 'open_list'); //储存打开的项目名#}
+        $('#date').value = new Date().getFullYear() + '-' + (new Date().getMonth() + 1) + '-' + new Date().getDate();
+    </script>
+    <div id="events"></div>
+{% endblock %}
+<!-- 数据接收开关 -->
+{% block conn %}
+    <span class="dropdown-menu dropdown-menu-right" style="width:200px" onclick=event.stopPropagation()>
+    地址：<input type="text" value="127.0.0.1" id="address" style="width:70%"><br>
+        端口：<input type="text" value="61234" id="ip" style="width:70%"><br>
+        获取频率：<input id="rate" type="number" value="10" min="1" style="width:50%; display:inline-block">秒<br>
+         <button value="打开" onclick="connect()">打开</button>
+        <button value="关闭" onclick="connect('关闭')">关闭</button>
+    </span>
+{% endblock %}

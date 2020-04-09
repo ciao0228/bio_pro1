@@ -1,0 +1,870 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <link rel="stylesheet" href="/static/ui/easyui.css">
+    <link rel="stylesheet" href="/static/ui/icon.css">
+    <link rel="stylesheet" href="/static/ui/demo.css">
+    <link rel="stylesheet" href="/static/bootstrap-3.3.7-dist/css/bootstrap.css">
+    <link rel="stylesheet" href="/static/jquery_growl/stylesheets/jquery.growl.css">
+    <link rel="icon" href="data:;base64,=">
+    <link rel="stylesheet" href="/static/mycss.css">
+    <script src="/static/ui/jquery.min.js"></script>
+    <script src="/static/ui/jquery.easyui.min.js"></script>
+    <script src="/static/bootstrap-3.3.7-dist/js/bootstrap.js"></script>
+    <script src="/static/highstock.js"></script>
+    <script src="/static/exporting.js"></script>
+    <script src="/static/series-label.js"></script>
+    <script src="/static/oldie.js"></script>
+    <script src="/static/offline-exporting.js"></script>
+    <script src="/static/highcharts-zh_CN.js"></script>
+    <script src="/static/cookies.js"></script>
+    <script src="./static/main.js"></script>
+    <script src="/static/jquery_growl/javascripts/jquery.growl.js"></script>
+</head>
+<body style="padding:0">
+<style>
+
+    td > input[type='number'] {
+        width: 100px;
+    }
+
+    th {
+        white-space: nowrap;
+    }
+
+    td {
+        border: none;
+        text-align: center;
+    }
+
+    button {
+        display: inline-block;
+        padding: 6px 12px;
+        margin-bottom: 0;
+        font-size: 14px;
+        font-weight: normal;
+        line-height: 1.42857143;
+        text-align: center;
+        white-space: nowrap;
+        vertical-align: middle;
+        -ms-touch-action: manipulation;
+        touch-action: manipulation;
+        cursor: pointer;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+        background-image: none;
+        border: 1px solid transparent;
+        border-radius: 4px;
+        color: #fff;
+        background-color: #337ab7;
+    }
+
+    table {
+        border: none;
+    }
+
+    h5 {
+        text-align: center;
+    }
+</style>
+<div id="container" style="min-width:400px; position: relative;">
+    <div class="mydiv" style="height:600px;resize:vertical;overflow: auto;border-bottom:1px solid black">
+        <div id="on_chart" style="resize:vertical;overflow: auto;border-bottom:1px solid black" onresize=resize()></div>
+        <span class="btn-group">
+            <button class="btn btn-primary dropdown-toggle" data-toggle="dropdown">图表样式</button>
+            <span class="dropdown-menu" style="width: 500px;height: 100px;float:left" onclick=event.stopPropagation()>
+                <span class="style_span">
+                    <h5>字段</h5>
+                    <select id="onfield" onchange=changefield(this.selectedIndex,"on")>
+                        {% for i in on %}
+                            <option>{{ i.meaning }}</option>
+                        {% endfor %}
+                    </select>
+                </span>
+            <span class="style_span">
+                <h5>颜色</h5>
+                <input id="oncolor" type="color" onchange=changeStyle("color","on")>
+            </span>
+            <span class="style_span">
+                <h5>线宽</h5>
+                <input id="onwidth" type="number" value=2 onchange=changeStyle("width","on")>
+            </span>
+                <span class="style_span">
+                    <h5>线型</h5>
+                    <select id="ondash" onchange=changeStyle("dashStyle","on")>
+                        <option>Solid</option>
+                        <option>ShortDash</option>
+                        <option>ShortDot</option>
+                        <option>ShortDashDot</option>
+                        <option>ShortDashDotDot</option>
+                        <option>Dot</option>
+                        <option>Dash</option>
+                        <option>LongDash</option>
+                        <option>DashDot</option>
+                        <option>LongDashDot</option>
+                        <option>LongDashDotDot</option>
+                    </select>
+                </span>
+            </span>
+        </span>
+        <span class="btn-group">
+            <button class="btn btn-primary dropdown-toggle" data-toggle="dropdown">取值范围</button>
+            <div class="dropdown-menu range" onclick=event.stopPropagation()>
+                <h5></h5>
+                <h4>最小值</h4>
+                <h4>最大值</h4>
+                {% for i in on %}
+                    <h5>{{ i.meaning }}</h5>
+                    <input type="number"
+                           value={{ i.min }} onchange=range("{{ i.meaning }}",{{ forloop.counter }},"min","on",this,"{{ i.chars }}")>
+                    <input type="number"
+                           value={{ i.max }} onchange=range("{{ i.meaning }}",{{ forloop.counter }},"max","on",this,"{{ i.chars }}")>
+                {% endfor %}
+            </div>
+        </span>
+        <span class="btn-group">
+            <span class="style_span" style="width:55%;margin:0">
+                <h6 style="margin:0;text-align: center;">刷新频率</h6>
+                <input type="number" style="width:100%;height:60%;display:inline-block" value=10 min=10
+                       onchange=change(this.value)>
+            </span>秒
+        </span>
+        <span class="btn-group">
+            <span class="style_span" style="width:55%;margin:0">
+                <h6 style="margin:0;text-align: center;">字段选择</h6>
+                <select id="onfield" onchange=changeline(this.selectedIndex,"on")>
+                        {% for i in on %}
+                            <option>{{ i.meaning }}</option>
+                        {% endfor %}
+                    </select>
+            </span>
+        </span>
+        <span class="btn-group" style="width:18%">
+            <span class="style_span">
+                <button onclick=resize()> 适应容器</button>
+            </span>
+        </span>
+    </div>
+    <div class="mydiv">
+        <div id="off_chart"></div>
+        <span class="btn-group">
+            <button class="btn btn-primary dropdown-toggle" data-toggle="dropdown">图表样式</button>
+            <span class="dropdown-menu" style="width: 500px;height: 100px;float:left" onclick=event.stopPropagation()>
+                <span class="style_span">
+                        <h5>字段</h5>
+                        <select id="offfield" onchange=changefield(this.selectedIndex)>
+                            {% for i in off %}
+                                <option>{{ i.meaning }}</option>
+                            {% endfor %}
+                        </select>
+                    </span>
+                <span class="style_span">
+                    <h5>颜色</h5>
+                    <input id="offcolor" type="color" onchange=changeStyle("color","off")>
+                </span>
+                <span class="style_span">
+                    <h5>线宽</h5>
+                    <input id="offwidth" type="number" onchange=changeStyle("width","off")>
+                </span>
+                <span class="style_span">
+                    <h5>线型</h5>
+                    <select id="offdash" onchange=changeStyle("color","off")>
+                        <option>Solid</option>
+                        <option>ShortDash</option>
+                        <option>ShortDot</option>
+                        <option>ShortDashDot</option>
+                        <option>ShortDashDotDot</option>
+                        <option>Dot</option>
+                        <option>Dash</option>
+                        <option>LongDash</option>
+                        <option>DashDot</option>
+                        <option>LongDashDot</option>
+                        <option>LongDashDotDot</option>
+                    </select>
+                </span>
+            </span>
+        </span>
+        <span class="btn-group">
+            <button class="btn btn-primary dropdown-toggle" data-toggle="dropdown">取值范围</button>
+            <div class="dropdown-menu range" onclick=event.stopPropagation()>
+                <h5></h5>
+                <h4>最小值</h4>
+                <h4>最大值</h4>
+                {% for i in off %}
+                    <h5>{{ i.meaning }}</h5>
+                    <input type="number"
+                           value={{ i.min }} onchange=range("{{ i.meaning }}",{{ forloop.counter }},"min","off",this,"{{ i.chars }}")>
+                    <input type="number"
+                           value={{ i.max }} onchange=range("{{ i.meaning }}",{{ forloop.counter }},"max","off",this,"{{ i.chars }}")>
+                {% endfor %}
+            </div>
+        </span>
+        <span class="btn-group">
+            <button class="btn btn-primary dropdown-toggle" data-toggle="dropdown">事件记录</button>
+            <div class="dropdown-menu dropdown-menu-right" style="width: 400px;height: 300px;"
+                 onclick=event.stopPropagation()>
+                <span style="vertical-align:top;display:inline-block;width:40%;height: 100%"><br><br>
+                    日期  <input name="date" type="date" style="width:77%"> <br>
+                    时间   <input name="time" style="width:77%" type="time" step=1> <br>
+                    类型 <input name="type" style="width:77%" type="text">
+                    <button class="btn btn-primary" onclick="setevent(this)">提交</button>
+                </span>
+                <span style="display:inline-block;width:58%;height:100%">
+                    <textarea name="title" style="width:100%;height:48%" placeholder="标题"></textarea>
+                    <textarea name="context" style="width:100%;height:50%" placeholder="离线事件记录"></textarea>
+                </span>
+            </div>
+        </span>
+        <span class="btn-group">
+            <button class="btn btn-primary dropdown-toggle" data-toggle="dropdown">离线输入</button>
+            <div class="dropdown-menu dropdown-menu-right" style="width: 500px;height: 300px;overflow:auto"
+                 onclick=event.stopPropagation()>
+                日期  <input name="date" type="date">
+                时间   <input name="time" type="time" step=1> <br>
+                {% for i in off %}
+                    <span style="display:inline-block;width:32%">
+                        <h5 style="width:100%;display:inline-block;">{{ i.meaning }}</h5>
+                        <input name="{{ i.chars }}" style="width:100%" type="number" value=0>
+                    </span>
+                {% endfor %}
+                <button class="btn btn-primary" onclick="getvalue(this)">提交</button>
+            </div>
+        </span>
+        <span class="btn-group" style="width:18%">
+            <span class="style_span" style="width:55%;margin:0">
+                <h6 style="margin:0;text-align: center;">字段选择</h6>
+                <select id="onfield" onchange=changeline(this.selectedIndex,"off")>
+                        {% for i in off %}
+                            <option>{{ i.meaning }}</option>
+                        {% endfor %}
+                    </select>
+            </span>
+        </span>
+    </div>
+
+</div>
+<!- 空白-->
+<div class='mydiv' style="height:300px">
+    <div id="events">
+        {#        <div id="name"></div>#}
+        {#        <div id="time"></div>#}
+        {#        <div id="type"></div>#}
+        {#        <div id="title"></div>#}
+        {#        <div id="context"></div>#}
+    </div>
+</div>
+<script>
+    //项目属性
+    mychart = {
+        name: "{{ name|safe }}",//项目名称
+        on: {
+            millisec: 10,//刷新频率,秒
+            last: Date.parse("{{ pro.begin_time|date:'Y-m-d H:i:s'}}") / 1000,//最近刷新时间
+            begin: Date.parse("{{ pro.begin_time|date:'Y-m-d H:i:s'}}") / 1000,//起始时间
+            range: {{ on|safe }},//在线范围
+            id: null,//定时器id
+            pro_id: null,//项目id
+            chart: null,
+            series: null,
+        },
+        off: {
+            range: {{ off|safe }},//离线范围
+            series: [],
+            chart: null
+        },
+        begintime: "{{ pro.begin_time|date:'Y-m-d H:i:s'}}",
+        end: null,
+        upload:{{ pro.upload }},
+        pro_id: {{ pro.id }},//项目id
+        gap: 60
+    };
+    //初始化
+    Highcharts.setOptions({
+        global: {
+            useUTC: false
+        },
+        lang: {
+            noData: '暂无数据'
+        }
+    });
+    //图表线形
+    dashStyles = [
+        'Solid',
+        'ShortDash',
+        'ShortDot',
+        'ShortDashDot',
+        'ShortDashDotDot',
+        'Dot',
+        'Dash',
+        'LongDash',
+        'DashDot',
+        'LongDashDot',
+        'LongDashDotDot'
+    ];
+    //图表配置
+    the_options = {
+        chart: {
+            events: {}
+        },
+        global: {
+            useUTC: false
+        },
+        legend: {
+            enabled: true,
+            align: 'right',
+            layout: 'vertical',
+            verticalAlign: 'top',
+            y: 100,
+            shadow: true
+        },
+        noData: {
+            style: {
+                fontWeight: 'bold',
+                fontSize: '15px',
+                color: '#303030'
+            }
+        },
+        plotOptions: {
+            series: {
+                {#compare: 'percent',#}
+                {#showInNavigator: true#}
+            }
+            {#showInNavigator: true#}
+        },
+        navigator: {
+            {#baseSeries: 2,#}
+            adaptToUpdatedData: true,
+            height: 70,
+            series: {
+                name: ''
+            }
+        },
+        credits: {
+            enabled: false
+        },
+        xAxis: {
+            crosshair: {
+                width: 2,
+                color: 'green',
+                dashStyle: 'shortdot'
+            },
+            minRange: 120,
+            {#minorTickInterval: 'auto',#}
+            {#startOnTick: true,#}
+            {#endOnTick: true#}
+        },
+        rangeSelector: {
+            buttons: [{
+                type: 'second',
+                count: 1,
+                text: '1秒'
+            }, {
+                type: "minute",
+                count: 1,
+                text: "1分钟"
+            }, {
+                type: "hour",
+                count: 2,
+                text: "2小时"
+            }, {
+                type: 'day',
+                count: 1,
+                text: '1天'
+            }, {
+                type: 'week',
+                count: 1,
+                text: '1周'
+            }, {
+                type: 'month',
+                count: 1,
+                text: '1个月'
+            }, {
+                type: 'month',
+                count: 6,
+                text: '6个月'
+            }, {
+                type: 'year',
+                count: 1,
+                text: '1年'
+            }, {
+                type: 'all',
+                text: '全部'
+            }],
+            selected: 2
+        },
+        tooltip: {
+            split: false,
+            formatter: function () {
+
+                //相对时间
+                let relative = (this.x - Date.parse(mychart.begintime)) / 1000;
+                let hour = parseInt(relative/3600);
+                let min = parseInt(relative%3600 / 60);
+                let sec = relative % 60;
+                let xIndex = this.point.index;
+                let yIndex = this.series.index;
+                //判断图表类型
+                let type = this.series.chart.renderTo.id.split("_")[0];
+                {#console.log(yIndex);#}
+                {#mychart[type].chart.update({navigator:{baseSeries:4}});#}
+                {#console.log(this.series.index);#}
+                return this.series.name + "<br>" +hour+'时'+ min + "分" + sec + '秒/' + myTimeToLocal(this.x) + "<br>" +
+                    this.y + "/" + mychart[type].series[xIndex][yIndex + 6];
+
+            }
+            {#shared: true,#}
+        },
+    };
+
+    //显示样式
+    function change(value) {
+        console.log(typeof (value));
+        mychart.on.millisec = Number(value);
+        clearInterval(mychart.on.id);
+        mychart.on.id = setInterval(function () {
+            update_data(mychart.name)
+        }, mychart.on.millisec * 1000)
+    }
+
+    //改变样式
+    function changeStyle(styletype, type) {
+        let id = '#' + type + styletype;
+        let index = $('#' + type + 'field').get(0).selectedIndex;
+        switch (styletype) {
+            case 'color':
+                mychart[type].chart.series[index].update(
+                    {color: $(id).val()}
+                );
+                break;
+            case 'width':
+                mychart[type].chart.series[index].update(
+                    {lineWidth: Number($(id).val())}
+                );
+                break;
+            case 'dash':
+                mychart[type].chart.series[index].update(
+                    {dashStyle: $(id).val()}
+                );
+                break;
+        }
+    }// 图例样式选择
+    function changefield(select, type = "off") {
+        let value = mychart[type].chart.series[select];
+        $("#" + type + "color").val(value.color);
+        $("#" + type + "width").val(value.options.lineWidth);
+        $("#" + type + "dash").val(value.options.dashStyle);
+        {#console.log(select.selectedIndex);#}
+    }
+
+    //选择字段
+    function changeline(select, type = "off") {
+        mychart[type].chart.update({navigator: {baseSeries: select}});
+    }
+
+    //更新数据
+    //在线项目定时获取
+    function update_data(pro_name, the_type = 'on', gap = 60, url = "./online_data/") {
+        $.ajax({
+            type: 'POST',
+            url: url,
+            data: {name: pro_name, type: the_type, last: mychart["on"].last, gap: mychart.gap},//项目名，项目类型，最近时间，图表间隔
+            dataType: "json",
+            async: true,
+            success: function (data) {
+                if (data.length === 0) {
+                    return false;
+                } else {
+                    //遍历数据，判断数据点的相对时间，跳过时间间隔大于gap的值；
+                    //定义二维数组，一维长度为56，即参数的个数，二维为字典{"data":[]}
+                    // 遍历数据加入字典{x,y,time,data}(相对时间，相对值，绝对时间，绝对值）
+                    let pro_data = data;
+                    //初始化 二维数组
+                    let the_length = pro_data[0].length;
+                    let series = new Array(the_length - 6);
+                    for (let i = 0; i < the_length - 6; i++) {
+                        series[i] = [];
+                    }
+                    let range = mychart[the_type]["range"];
+                    for (let i = 0, current = pro_data[0][4], data_length = pro_data.length; i < data_length; i++) {
+                        current = pro_data[i][3];
+                        let j = 6;
+                        for (; j < the_length - 1; j++) {
+                            if (pro_data[i][j] != null) {
+                                //计算差值 添加数据
+                                if (range[j - 6].max > range[j - 6].min) {
+                                    let value = (pro_data[i][j] - range[j - 6].min) / (range[j - 6].max - range[j - 6].min);
+                                    mychart[the_type].chart.series[j - 6].addPoint([pro_data[i][the_length - 1] * 1000, value], false);
+                                } else {
+                                    mychart[the_type].chart.series[j - 6].addPoint([pro_data[i][the_length - 1] * 1000, pro_data[i][j]], false);
+                                }
+                            }
+                        }
+                    }
+                    if (data.length !== 0) {
+                        //数据列为空，即第一次请求数据
+                        if (mychart["on"]["series"] == null) {
+                            mychart["on"]["series"] = data;
+                        } else {
+                            //数据不为空时，添加原始数据
+                            if (data.length !== 0) {
+                                for (let i = 0; i < data.length; i++) {
+                                    mychart.on.series.push(
+                                        data[i]
+                                    )
+                                }
+                            }
+                        }
+                        //更新最后一次数据时间
+                        mychart["on"]["last"] = data.slice(-1)[0].slice(-1)[0];
+                        //获取现在时间
+                    }
+                    //重新渲染图表
+                    mychart[the_type].chart.redraw(false);
+                }
+            }
+        })
+    }
+
+    function first_get(pro_name, the_type = 'on', gap = 60, url = "./online_data/") {
+        $.ajax({
+            type: 'POST',
+            url: url,
+            data: {name: pro_name, type: the_type, last: mychart["on"].last, gap: mychart.gap},//项目名，项目类型，最近时间，图表间隔
+            dataType: "json",
+            async: true,
+            success: function (data) {
+                if (data.length === 0) {
+                    return false;
+                } else {
+                    //定义二维数组，一维长度为56，即参数的个数，二维为字典{"data":[]}
+                    // 遍历数据加入字典{x,y,time,data}(相对时间，相对值，绝对时间，绝对值）
+                    let pro_data = data;
+                    //初始化 二维数组
+                    let the_length = pro_data[0].length;
+                    let series = new Array(the_length - 6);
+                    for (let i = 0; i < the_length - 6; i++) {
+                        series[i] = [];
+                    }
+                    let range = mychart[the_type]["range"];
+                    for (let i = 0, current = pro_data[0][4], data_length = pro_data.length; i < data_length; i++) {
+                        current = pro_data[i][3];
+                        let j = 6;
+                        for (; j < the_length - 1; j++) {
+                            if (pro_data[i][j] != null) {
+                                //计算差值 添加数据
+                                if (range[j - 6].max > range[j - 6].min) {
+                                    let value = (pro_data[i][j] - range[j - 6].min) / (range[j - 6].max - range[j - 6].min);
+                                    mychart[the_type].chart.series[j - 6].addPoint([pro_data[i][the_length - 1] * 1000, value], false);
+                                } else {
+                                    mychart[the_type].chart.series[j - 6].addPoint([pro_data[i][the_length - 1] * 1000, pro_data[i][j]], false);
+                                }
+                            }
+                        }
+                    }
+                    if (data.length !== 0) {
+                        //数据列为空，即第一次请求数据
+                        if (mychart["on"]["series"] == null) {
+                            mychart["on"]["series"] = data;
+                            /*mychart.on.id = setInterval(function () {
+                                update_data(mychart.name, "on")
+                            }, mychart.on.millisec * 1000);*/
+                        } else {
+                            //数据不为空时，添加原始数据
+                            if (data.length !== 0) {
+                                for (let i = 0; i < data.length; i++) {
+                                    mychart.on.series.push(
+                                        data[i]
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    //重新渲染图表
+                    mychart[the_type].chart.redraw(false);
+                }
+            }
+        })
+    }
+
+    //执行主函数
+    {
+        //在线图表绘制
+        let series = [];
+        the_options["title"] = {text: "在线" + mychart.name};
+        for (let i = 0; i < mychart["on"]["range"].length; i++) {
+            series.push({
+                type: "line",
+                name: mychart["on"]["range"][i]['meaning'],
+                data: [],
+                id: mychart["on"]["range"][i]['meaning'],
+                dashStyle: 'Solid',
+            })
+        }
+        the_options["series"] = series;
+        mychart.on.chart = Highcharts.stockChart("on_chart", the_options);
+        //初始化
+        //获取当前时间
+        let now = new Date().getTime() / 1000;
+        //时间戳
+        let gaps = 6 * 60 * 60;
+        console.log(mychart.on.last);
+        for (; mychart.on.last+gaps < now; ) {
+            first_get(mychart.name, "on");
+            mychart.on.last = mychart.on.last + gaps;
+        }
+        mychart.on.id = setInterval(function () {
+            update_data(mychart.name, "on")
+        }, mychart.on.millisec * 1000);
+        {#update_data(mychart.name, "on");#}
+        changefield(0, "on");
+
+
+        //离线图表绘制
+        series = [];
+        the_options["title"] = {text: "离线" + mychart.name};
+        for (let i = 0; i < mychart.off["range"].length; i++) {
+            series.push({
+                type: "line",
+                name: mychart.off["range"][i]['meaning'],
+                data: [],
+                id: mychart.off["range"][i]['meaning'],
+                dashStyle: 'Solid',
+            })
+        }
+        the_options["series"] = series;
+        mychart.off.chart = Highcharts.stockChart("off_chart", the_options);
+        {#update_data(mychart.name, "off");#}
+        {#changefield(0);#}
+    }
+
+    //数据列名称，索引，min/max，on/off,this
+    function range(name, index, vtype, type, thethis, en) {
+        mychart[type].range[index - 1][vtype] = Number(thethis.value);
+        let data = [];
+        // 判断差值，差值小于0 ，提醒
+        let sub = mychart[type].range[index - 1].max - mychart[type].range[index - 1].min;//差值
+        if (sub <= 0)
+            return console.log("最小值大于或等于最大值");
+        //判断数据列是否为空
+        if (mychart[type].series != null) {
+            let series = mychart[type].series;//记录
+            let length = mychart[type].series.length;//记录数量
+            let total = mychart[type].series[0].length;//记录内长度
+            let min = mychart[type].range[index - 1].min;//最小值
+            console.log(series[28][index + 6]);
+            for (let i = 0; i < length; i++) {
+
+                let value = (series[i][index + 6] - min) / sub;//计算相对值
+                data.push([series[i][total - 1] * 1000, value])
+            }
+            mychart[type].chart.get(name).update({
+                data: data
+            });//更新指定列数据
+        }
+        $.ajax({
+            url: "./pagerange/",
+            type: "POST",
+            //返回值为[项目id，图表类型,max/min,字段名,值]
+            data: {'data': [mychart.pro_id, type, vtype, en, thethis.value]},
+            success: function (data) {
+            }
+        })
+    }
+
+    //获取离线项目表单中的值,并提交
+    function getvalue(tthis, the_type = "off") {
+        console.log(tthis.parentElement);
+        let input = tthis.parentElement.getElementsByTagName("input");
+        console.log(input[0].value);
+        //判断日期
+        if (input[0].value === "") return console.log("请输入日期");
+        //判断时间
+        if (input[1].value === "") return console.log("请输入时间");
+        //计算相对秒数，判断时间差
+        let time = input[0].value + ' ' + input[1].value;
+        let second = (Date.parse(time) - Date.parse(mychart.begintime)) / 1000;
+        if (second < 0) return console.log("输入时间早于开始时间");
+        let data = {
+            PROJECT_id: mychart.pro_id,
+            SAMPLE_TIME: time,
+            RELATIVETIME: second,
+            UPLOAD: mychart.upload
+        };
+        console.log(data);
+        for (let i = 2; i < input.length; i++) {
+            data[input[i].name] = input[i].value;
+        }
+        console.log(data);
+
+        $.ajax({
+            type: 'POST',
+            url: "/save_values/",
+            data: data,
+            dataType: "json",
+            async: true,
+            success: function (data) {
+                if (data['data'] === 0) return $.growl.warning({message: '输入时间有误'});
+                $.growl.warning({message: '导入成功'});
+                console.log(data.data);
+                let pro_data = data.data;
+                mychart.off.series.push(data.data);
+                let the_length = data.data.length;
+                console.log(the_length);
+                //离线范围
+                let range = mychart[the_type]["range"];
+                console.log(range);
+                for (let j = 6; j < the_length - 1; j++) {
+                    if (pro_data[j] != null) {
+                        //计算差值 添加数据
+                        if (range[j - 6].max > range[j - 6].min) {
+                            let value = (pro_data[j] - range[j - 6].min) / (range[j - 6].max - range[j - 6].min);
+                            mychart[the_type].chart.series[j - 6].addPoint([pro_data[the_length - 1] * 1000, value], true, true);
+                        } else {
+                            mychart[the_type].chart.series[j - 6].addPoint([pro_data[the_length - 1] * 1000, pro_data[j]], true, true);
+                        }
+                    }
+                }
+            }
+        })
+    }
+
+    //事件记录
+    function setevent(tthis) {
+        let input = tthis.parentElement.getElementsByTagName("input");
+        let textarea = tthis.parentElement.parentElement.getElementsByTagName("textarea");
+        //项目信息
+        let data = {
+            project_id: mychart.pro_id,
+            name: mychart.name,
+            time: input[0].value + " " + input[1].value,
+            type: input[2].value
+        };
+        for (let i = 0; i < textarea.length; i++) {
+            data[textarea[i].name] = textarea[i].value;
+        }
+        $.ajax({
+            type: 'POST',
+            url: "/event_values/",
+            data: data,
+            success: function (dat) {
+                {#console.log(dat);#}
+                if (dat['event']) {
+                    {#console.log(data);#}
+                    {#console.log(Date.parse(data.time));#}
+                    mychart.off.chart.xAxis[0].addPlotLine({
+                        value: Date.parse(data.time),
+                        color: 'red',
+                        width: 5,
+                        events: {
+                            click: function () {
+                                let events = '时间:' + data['event'][i][2] + '<br>类型:' + data['event'][i][3] + '<br>标题:'
+                                    + data['event'][i][4] + '<br>事件:' + data['event'][i][5];
+                                document.getElementById("events").innerHTML = events;
+                                {#$("#events").innerHTML = data["event"][i][4]#}
+                                //当标示线被单击时，触发的事件
+                            },
+                            mouseover: function () {
+                                let events = '时间:' + data['event'][i][2] + '<br>类型:' + data['event'][i][3] + '<br>标题:'
+                                    + data['event'][i][4] + '<br>事件:' + data['event'][i][5];
+                                document.getElementById("events").innerHTML = events;
+                                //当标示线被鼠标悬停时，触发的事件
+                            },
+
+                            mouseout: function () {
+                                //当标示线被鼠标移出时，触发的事件
+                            },
+                            mousemove: function () {
+                                //当标示线被鼠标移动(时，触发的事件
+                            }
+                        }
+                    })
+                }
+            }
+        })
+    }
+
+    //获取离线数据
+    function get_offdata(the_type = "off") {
+        $.ajax({
+            type: 'POST',
+            url: "./get_offdata",
+            data: {pro_id: mychart.pro_id},//项目名，项目类型，最近时间，图表间隔
+            dataType: "json",
+            async: true,
+            success: function (data) {
+                {#console.log(data);#}
+                for (let i = 0; i < data["event"].length; i++) {
+                    mychart.off.chart.xAxis[0].addPlotLine({
+                        value: Date.parse(data.event[i][2]),
+                        color: 'red',
+                        width: 5,
+                        events: {
+                            click: function () {
+                                let events = '时间:' + data['event'][i][2] + '<br>类型:' + data['event'][i][3] + '<br>标题:'
+                                    + data['event'][i][4] + '<br>事件:' + data['event'][i][5];
+                                document.getElementById("events").innerHTML = events;
+                                //当标示线被单击时，触发的事件
+                            },
+                            mouseover: function () {
+                                let events = '时间:' + data['event'][i][2] + '<br>类型:' + data['event'][i][3] + '<br>标题:'
+                                    + data['event'][i][4] + '<br>事件:' + data['event'][i][5];
+                                document.getElementById("events").innerHTML = events;
+                                //当标示线被鼠标悬停时，触发的事件
+                            },
+
+                            mouseout: function () {
+                                //当标示线被鼠标移出时，触发的事件
+                            },
+                            mousemove: function () {
+                                //当标示线被鼠标移动(时，触发的事件
+                            }
+                        }
+                        {#id: 'plot-line-1'#}
+                    });
+                    {#console.log(Date.parse(data.event[i][2]));#}
+                }
+                if (data.data.length === 0) return false;
+                mychart.off.series = data.data;
+                let pro_data = data['data'];
+                let the_length = pro_data[0].length;
+                let series = new Array(the_length - 6);
+                for (let i = 0; i < the_length - 6; i++) {
+                    series[i] = [];
+                }//初始化 二维数组
+                let range = mychart[the_type]["range"];
+                for (let i = 0, current = pro_data[0][4], data_length = pro_data.length; i < data_length; i++) {
+                    current = pro_data[i][3];
+                    for (let j = 6; j < the_length - 1; j++) {
+                        if (pro_data[i][j] != null) {
+                            //计算差值 添加数据
+                            if (range[j - 6].max > range[j - 6].min) {
+                                let value = (pro_data[i][j] - range[j - 6].min) / (range[j - 6].max - range[j - 6].min);
+                                mychart[the_type].chart.series[j - 6].addPoint([pro_data[i][the_length - 1] * 1000, value], false);
+                            } else {
+                                mychart[the_type].chart.series[j - 6].addPoint([pro_data[i][the_length - 1] * 1000, pro_data[i][j]], false);
+                            }
+                        }
+                    }
+                }
+                //重新渲染图表
+                mychart[the_type].chart.redraw();
+            }
+
+        })
+    }
+
+    {#$('#on_chart').onresize=resize();#}
+
+    function resize(type = 'on') {
+        {#console.log(2);#}
+        mychart[type].chart.reflow();
+    }
+
+    get_offdata();
+</script>
+</body>
+</html>

@@ -1,0 +1,573 @@
+{% extends 'layout.html' %} {% load static %}
+
+{% block left_conter %}
+    <div class="easyui-accordion" data-options="" style="height: 100%;padding:0">
+        <div class="panel-group" id="accordion" style="padding:0">
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <h4 class="panel-title">
+                        <a data-toggle="collapse" data-parent="#accordion" href="#collapseOne">批次</a>
+                    </h4>
+                </div>
+                <div id="collapseOne" class="collapse">
+                    <div id="collapse1" class="panel-body" style="overflow: auto;max-height: 300px">
+                        <form>
+                            {% for i in uploads %}
+                                <div class="active"><label><input type="radio" name="upload_id"
+                                                                  value={{ i|safe }}>批次{{ i }}</label></div>
+                            {% endfor %}
+                            <p><input type="submit" value="选择"></p>
+                        </form>
+                    </div>
+                </div>
+            </div><!--批次-->
+            <div class="panel panel-success">
+                <div class="panel-heading">
+                    <h4 class="panel-title">
+                        <a data-toggle="collapse" data-parent="#accordion" href="#collapseTwo">项目名</a>
+                    </h4>
+                </div>
+                <div id="collapseTwo" class="collapse">
+                    <div id="collapse2" class="panel-body">
+                        <b>已选批次：</b><br>
+                        <button class="btn btn-success" onclick="del_pro('pro_names')">清空所选项目</button>
+                        <button class="btn btn-primary" onclick="draw_checkbox()">选择</button>
+                        <div id="projects" style="max-height:285px;overflow:auto">
+                            {% for i in pro_names %}
+                                <div>
+                                    <label><input type="checkbox" name="pro_name" value="{{ i.name }}">{{ i.name }}
+                                    </label>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div><!--项目名-->
+            <div class="panel panel-info">
+                <div class="panel-heading">
+                    <h4 class="panel-title">
+                        <a data-toggle="collapse" data-parent="#accordion" href="#collapseThree">在线参数</a>
+                    </h4>
+                </div>
+                <div id="collapseThree" class="collapse">
+                    <div id="collapse3" class="panel-body" style="max-height:400px;padding-right: 0">
+                        <button class="btn btn-success" onclick="del_field('on')">清空所选字段</button>
+                        <button class="btn btn-primary" onclick="chosen_on()">选择</button>
+                        <div id="on_fields" style="max-height:300px;overflow:auto">
+                            {% for i in ons %}
+                                <div>
+                                    <label><input type="checkbox" name="on_fields" value="{{ i.chars }}">{{ i.meaning }}
+                                    </label>
+                                </div>
+                            {% endfor %}
+                        </div><!-- 在线参数容器-->
+                    </div>
+                </div>
+            </div><!--在线-->
+            <div class="panel panel-warning">
+                <div class="panel-heading">
+                    <h4 class="panel-title">
+                        <a data-toggle="collapse" data-parent="#accordion" href="#collapseFour">离线参数</a>
+                    </h4>
+                </div>
+                <div id="collapseFour" class="collapse">
+                    <div id="collapse4" class="panel-body" style="max-height:400px;padding-right: 0">
+                        <button type="submit" class="btn btn-success" onclick="del_field('off')">清空所选字段</button>
+                        <button class="btn btn-primary" onclick="chosen_off()">选择</button>
+                        <div id="off_fields" style="max-height:300px;overflow:auto">
+                            {% for i in offs %}
+                                <div>
+                                    <label><input type="checkbox" name="off_fields"
+                                                  value="{{ i.chars }}">{{ i.meaning }}
+                                    </label>
+                                </div>
+                            {% endfor %}
+                        </div><!-- 离线参数容器-->
+                    </div>
+                </div>
+            </div><!--离线-->
+            <div class="panel panel-danger">
+                <div class="panel-heading">
+                    <h4 class="panel-title">
+                        <a data-toggle="collapse" data-parent="#accordion" href="#collapse5">图表显示方式</a>
+                    </h4>
+                </div>
+                <div id="collapse5" class="collapse">
+                    <div class="panel-body" style="max-height:400px;padding-right: 0">
+                        <label style="width:100%"><select style="height:50px;width:100%" onchange="create_graph()">
+                            <option>离在线异表</option>
+                            <option>离在线同表</option>
+                        </select></label>
+                    </div>
+                </div>
+            </div>
+            <div id="events"></div>
+        </div>
+    </div>
+{% endblock %} {# 重写菜单栏#}
+{% block checkbox %}
+    <div class="btn-group" id="dvCBs" style="background-color: white;width: 100%">
+        <div id="table" class='active' style="max-height:400px;width:100%;overflow:auto;resize:both;"></div>
+        <br>
+        <button class="btn-success" onclick="del_all()">清空所选字段</button>
+        <button class="btn-primary" onclick="create_graph()">绘制图表</button>
+    </div>
+{% endblock %}{#创建复选框#}
+{% block content %}
+    <title>历史分批数据</title>
+    <style>
+        table {
+            border-collapse: collapse;
+        }
+
+        table, td, th {
+            border: 1px solid black;
+        }
+    </style>{#    设置表格样式#}
+    {% for i in pro_names %}
+    {% endfor %}
+    <script>
+        delete the_options.tooltip;
+        {#checkbox_save('dvCBs', 'input', 'vs');//保存 选中的项目的字段复选框值#}
+        on_charts = [];
+        Index = 0;
+        mychart = {
+            {% for i in pro_names %}
+                "{{ i.name }}": {
+                    "on": {
+                        "field": [],
+                        "ranges": {min: {}, max: {}},
+                        "series": [],
+                        chart: null,
+
+                    },
+                    "off": {
+                        "field": [],
+                        "ranges": {min: {}, max: {}},
+                        chart: null,
+                    },
+                    "pro_id": {{ i.id }},
+                    'begintime': '{{ i.begin_time|date:'Y-m-d H:i:s'}}',
+                },
+            {% endfor %}
+        };
+
+        function gets(the_type = 'on') {
+            let chosen_name = getCookie('chosen_name').split(',');
+            let a = [];
+            let alls = document.getElementsByClassName('table')[0];
+            let start_index = 0;
+            let whole_length = ons.length;
+            if (the_type === 'off') {
+                start_index = ons.length;
+                whole_length = ons.length + offs.length;
+            }
+            for (let i = 0; i < chosen_name.length; i++) {
+                let one_pro = alls.getElementsByClassName(chosen_name[i]);
+                let c = [chosen_name[i]];
+                for (let j = start_index; j < whole_length; j++) {
+                    if (one_pro[j].checked)
+                        c.push(one_pro[j].name);
+                }
+                if (c.length !== 1)
+                    a.push(c);
+            }
+            return a;
+        }//获得 复选框中项目 字段
+        function create_graph1(div_id, the_type) {
+            let chosen_pro = gets(the_type);
+            let data = ons;
+            if (the_type === 'off') data = offs;
+            for (let i = 0; i < chosen_pro.length; i++) {
+                let pro_name = chosen_pro[i][0];
+                let graph_name = the_type + '_' + pro_name;
+                let in_index = Index;
+                $(div_id).append('<div class="mydiv"><div id=' + graph_name + ' style="width:100%;height:400px"></div></div>');
+                let series = [];
+                let the_range = [];
+                for (let j = 1; j < chosen_pro[i].length; j++) {
+                    for (let h = 0; h < data.length; h++)
+                        if (chosen_pro[i][j] === data[h]['chars']) {
+                            the_range.push(data[h]);
+                            series.push({
+                                name: data[h]['meaning'],
+                                data: [0],
+                                dashStyle: 'Solid'
+                            })
+                        }
+                }
+                let title = '在线' + pro_name;
+                if (the_type === 'off') title = '离线' + pro_name;
+                let options = the_options;
+                options['title'] = {text: title};
+                options['series'] = series;//图表配置
+                on_charts[Index] = Highcharts.chart(graph_name, options);
+                display_mode('#' + graph_name, pro_name, in_index, the_type, 3600);
+                {#create_button_range(pro_name, in_index, the_type, the_range);#}
+                {#create_button('#' + graph_name, graph_name, in_index);#}
+                {#update_data(pro_name, in_index, the_type, 3600);#}
+                Index++;
+            }
+        } <!-- 生成在线/离线 图表-->
+        the_option1 = {
+            allowPointSelect: true,
+            chart: {zoomType: 'xy'},
+            xAxis: {
+                crosshair: {
+                    width: 2,
+                    color: 'green',
+                    dashStyle: 'shortdot'
+                },
+                scrollbar: {enabled: true},
+                minRange: 120,
+                min: 0,
+                minorTickInterval: 'auto',
+                startOnTick: true,
+                endOnTick: true
+            },
+            yAxis: {
+                crosshair: {
+                    width: 2,
+                    color: 'green',
+                    dashStyle: 'shortdot'
+                },
+                scrollbar: {enabled: true}
+            },
+            credits: {enabled: false},
+            legend: {
+                layout: 'vertical',
+                align: 'right',
+                verticalAlign: 'middle',
+                float: true,
+            },
+            tooltip: {
+                formatter: function () {
+                    //相对时间
+                    {#let relative = (this.x - Date.parse(mychart.begintime)) / 1000;#}
+                    let hour = parseInt(this.x / 3600);
+                    let min = parseInt(this.x % 3600 / 60);
+                    let sec = this.x % 60;
+                    let xIndex = this.point.index;
+                    let yIndex = this.series.index;
+                    //图表类型
+                    let type = this.series.chart.renderTo.id.split("_")[0];
+                    //项目名称
+                    let name = this.series.chart.renderTo.id.split(type + "_")[1];
+
+                    return this.series.name + "<br>" + hour + "时" + min + "分" + sec + '秒' + "<br>" +
+                        this.y + "/" + mychart[name][type].series[xIndex][yIndex];
+                }
+            }
+        };//图表配置
+        //记录复选框中选择的所有信息，并保存在变量mychart中
+        function get_all() {
+            //获取选中的项目名
+            let chosen_name = getCookie('chosen_name').split(',');
+            let alls = document.getElementsByClassName('table')[0];
+            for (let i = 0; i < chosen_name.length; i++) {
+                //获得项目名
+                let name = chosen_name[i];
+                //获得项目名对应下的所有表格下的复选框
+                let one_pro = alls.getElementsByClassName(name);
+                for (let j = 0; j < ons.length; j++) {
+                    if (one_pro[j].checked) {
+                        mychart[name].on.field.push(ons[j]);
+                        mychart[name].on.ranges.min[one_pro[j].name] = 0;
+                        mychart[name].on.ranges.max[one_pro[j].name] = 0;
+                    }
+                }
+                for (let j = ons.length; j < one_pro.length; j++) {
+                    if (one_pro[j].checked) {
+                        mychart[name].off.field.push(offs[j - ons.length]);
+                        mychart[name].off.ranges.min[one_pro[j].name] = 0;
+                        mychart[name].off.ranges.max[one_pro[j].name] = 0
+                    }
+                }
+            }
+        }
+
+        function create_chart(key, the_type) {
+            let graph_name = the_type + "_" + key;
+            $("#container").append('<div id="'+key+'"><div id=' + graph_name + ' style="height:400px"></div></div>');
+            let series = [];
+            if (the_type === 'on') the_option1["title"] = {text: "在线" + key};
+            else the_option1["title"] = {text: "离线" + key};
+            for (let i = 0; i < mychart[key][the_type]["field"].length; i++) {
+                series.push({
+                    type: "line",
+                    name: mychart[key][the_type]['field'][i]['meaning'],
+                    data: [],
+                    id: mychart[key][the_type]['field'][i]['chars'].toLowerCase(),
+                    dashStyle: 'Solid',
+                })
+            }
+            the_option1["series"] = series;
+            mychart[key][the_type].chart = Highcharts.chart(graph_name, the_option1);
+            update_data(key, the_type);
+
+        }
+
+        //生成离在线同表
+        function create_same(div_id) {
+            let data_on = get_all()['the_on'];
+            let data_off = get_all()['the_off'];
+            for (let i = 0; i < a.length; i++) {
+                let graph_name = a[i][0];
+                let pro_name = a[i][0];
+                $(div_id).append('<div class="mydiv"><div id=' + graph_name + ' style="height:400px"></div></div>');
+                let series = [];
+                for (let j = 1; j < a[i].length; j++) {
+                    series.push({
+                        name: a[i][j]['meaning'],
+                        data: [0],
+                        dashStyle: 'Solid',
+                    })
+                }
+                let options = the_options;
+                options['title'] = {text: graph_name};
+                options['series'] = series;
+                let in_index = Index;
+                on_charts[in_index] = Highcharts.chart(graph_name, options);
+                display_mode('#' + pro_name, graph_name, in_index, 'on', 3600);
+                cr_pg_button('#' + pro_name, graph_name, in_index, data_on[i], data_off[i]);//取值范围
+                Index++;
+            }
+        }
+
+        //同表更新数据
+        function update_same(pro_name, in_index, the_type = 'on', gap = 3600) {
+            let ranges = document.getElementById(pro_name).nextSibling.nextSibling;
+            ranges = ranges.getElementsByTagName('input');
+            let data_on = [pro_name];
+            let all = document.getElementsByClassName(pro_name);
+            for (let i = 0; i < ons.length; i++)
+                if (all[i].checked)
+                    data_on.push(all[i].name);
+            let on_range = [];
+            for (let i = 0; i < (data_on.length - 1) * 2; i++)
+                on_range.push(ranges[i].value);
+            let data_off = [pro_name];
+            for (let i = ons.length; i < all.length; i++)
+                if (all[i].checked)
+                    data_off.push(all[i].name);
+            let off_range = [];
+            for (let i = (data_on.length - 1) * 2; i < ranges.length; i++)
+                off_range.push(ranges[i].value);
+            $.ajax({
+                type: 'POST',
+                url: "/same_page/",
+                data: {
+                    pro_name: pro_name,
+                    data_on: data_on,
+                    data_off: data_off,
+                    on_range: on_range,
+                    off_range: off_range,
+                    gap: gap
+                },
+                dataType: "json",
+                traditional: true,
+                async: true,
+                success: function (data) {
+                    console.log(data);
+                    let series = [];
+                    for (let i = 2; i < data['pro_on_data'].length; i++)
+                        series.push({
+                            data: data['pro_on_data'][i][1]
+                        });
+                    for (let i = 2; i < data['pro_off_data'].length; i++)
+                        series.push({
+                            data: data['pro_off_data'][i][1]
+                        });
+                    on_charts[in_index].update({
+                        series: series
+                    })
+                }
+            });
+        }
+
+        //获取数据
+        function update_data(key, the_type) {
+            //获取所选全部项目字段
+            let field = [];
+            for (let i = 0; i < mychart[key][the_type].field.length; i++) {
+                field.push(mychart[key][the_type].field[i].chars.toLowerCase());
+            }
+            $.ajax({
+                type: 'POST',
+                url: "/his_pro/",
+                data: {pro_id: mychart[key].pro_id, field: field, the_type: the_type},
+                dataType: "json",
+                traditional: true,
+                async: true,
+                success: function (data) {
+                    if (data.data.length === 0)
+                        return false;
+                    {#mychart[key][the_type]#}
+                    let ranges = mychart[key][the_type].ranges;
+                    mychart[key][the_type].ranges.min = data['min'][0];
+                    mychart[key][the_type].ranges.max = data['max'][0];
+                    mychart[key][the_type].series = data['data'];
+                    let index = 0;
+                    let length1 = mychart[key][the_type].series.length;
+                    let length2 = mychart[key][the_type].series[0].length;
+                    for (let key2 in ranges.max) {
+                        //差值
+                        let cha = ranges.max[key2] - ranges.min[key2];
+                        for (let i = 0, length = mychart[key][the_type].series.length; i < length; i++) {
+                            if (mychart[key][the_type].series[i][index] != null) {
+                                if (cha > 0) {
+                                    let value = (mychart[key][the_type].series[i][index] - ranges.min[key2]) / cha;
+                                    mychart[key][the_type].chart.get(key2).addPoint([mychart[key][the_type].series[i][length2 - 1], value], false);
+                                } else {
+                                    mychart[key][the_type].chart.get(key2).addPoint([mychart[key][the_type].series[i][length2 - 1], mychart[key][the_type].series[i][index]], false);
+                                }
+                            }
+                        }
+                        index++;
+                    }
+
+                    mychart[key][the_type].chart.redraw();
+                    cr_pg_button('#' + the_type + '_' + key, key, the_type);
+                    create_button(key, the_type);
+
+                }
+            })
+        }
+
+        function calculate(key) {
+
+        }
+
+        //更新数据
+        function create_graph() {
+            for (let key in mychart) {
+                $('#' + key).empty();
+                if (mychart[key].on.field.length != 0) {
+                    create_chart(key, 'on');
+                }
+                if (mychart[key].off.field.length != 0) {
+                    create_chart(key, 'off');
+                }
+            }
+        }
+
+        //创建取值范围按钮
+        function cr_pg_button(div_id, pro_name, the_type) {
+            // 图表名称
+            let div = '<span class="btn-group"><button class="btn btn-primary dropdown-toggle" data-toggle="dropdown">'
+                + '取值范围</button><div class="dropdown-menu range" name="the_ranges"' + 'onclick=event.stopPropagation()>';
+            // 按钮容器
+            let title = '<h4 style="display:inline-block;width:25%"></h4><h4>最小值</h4><h4>最大值</h4>';
+            let body = '';
+            let field = mychart[pro_name][the_type].field;
+            let the_range = mychart[pro_name][the_type].ranges;
+            {#console.log(the_range.toString());#}
+            for (let i = 0; i < field.length; i++) {
+                body += '<h5>' + field[i]['meaning'] + '</h5>' +   //字段名称
+                    '<input type="number" class="input" name="min" value =' + the_range.min[field[i]['chars'].toLowerCase()] +
+                    ' onchange=range("' + pro_name + '",' + i + ',"min","' + the_type + '",this)>' +  //最小值
+                    '<input type="number" class="input" name="max" value =' + the_range.max[field[i]['chars'].toLowerCase()] +
+                    ' onchange=range("' + pro_name + '",' + i + ',"max","' + the_type + '",this)>' //最大值
+            }
+            $(div_id).after(div + title + body + '</div></span>');
+        }
+
+        //创建图表样式按钮
+        function create_button(pro_name, type) {
+            let div_id = "#" + type + '_' + pro_name;
+            let options = '';
+            let div = '<span class="btn-group"><button class="btn btn-primary dropdown-toggle" data-toggle="dropdown">' +
+                '图表样式</button><div class="dropdown-menu" style="width: 500px;height: 100px;float:left" ' +
+                'onclick=event.stopPropagation()>';
+            for (let h = 0; h < mychart[pro_name][type].chart.series.length; h++) {
+                options += '<option>' + mychart[pro_name][type].chart.series[h].options.name + '</option>';
+            }
+            let field = '<span class="style_span"><h5>字段</h5><select id="' + pro_name + '_fields" ' +
+                'onchange=change_field_name("' + pro_name + '","' + type + '")>' + options + '</select></span>';
+            //字段
+            let color = '<span class="style_span"><h5>颜色</h5><input id="' + pro_name + '_color" type="color" ' +
+                'onchange=change("' + pro_name + '","color","' + type + '")></span>';
+            //颜色
+            let width = '<span class="style_span"><h5>线宽</h5><input  id="' + pro_name + '_width" type="number"' +
+                ' onchange=change("' + pro_name + '","width","' + type + '")></span>';
+            //线宽
+            let dashs = '';
+            for (let h = 0; h < dashStyles.length; h++) {
+                dashs += '<option>' + dashStyles[h] + '</option>';
+            }
+            let dashStyle = '<span class="style_span"><h5>线型</h5><select id="' + pro_name + '_dash" onchange=change("'
+                + pro_name + '","dashStyle","' + type + '")>' + dashs + '</select></span>';
+            //线型
+            $(div_id).after(div + field + color + width + dashStyle + '</div></span>');
+            //输出按钮
+            change_field_name(pro_name, type); //样式初始化
+        }//输入容器名，图表名称,创建图例按钮
+        function change_field_name(pro_name, type) {
+            let index = $('#' + pro_name + '_fields').get(0).selectedIndex;
+            $('#' + pro_name + '_color').val(mychart[pro_name][type].chart.series[index].color);
+            $('#' + pro_name + '_width').val(mychart[pro_name][type].chart.series[index].options.lineWidth);
+            $('#' + pro_name + '_dash').val(mychart[pro_name][type].chart.series[index].options.dashStyle);
+        }//图例字段选择
+        function display_mode(div_id,) {
+            let option = '<option>分</option><option>时</option>';
+            if (t === 3600) option = '<option>时</option><option>分</option>';
+            let times = '<span class="btn-group"><span class="style_span" style="width:50%;margin:0">' +
+                '<h6 style="margin:0;text-align: center;">显示方式</h6><select name="time_length" style="height:60%;" ' +
+                '>' + option + '</select></span></span>';
+            $(div_id).after(times);
+        }//显示方式
+        //改变取值范围
+        function change_range(the, pro_name, the_type) {
+
+            console.log(the);
+        }
+
+        //vtype为"min"或"max"
+        function range(pro_name, index, vtype, type, thethis) {
+            let field = mychart[pro_name][type].field[index].chars.toLowerCase();
+            {#console.log(thethis.value);#}
+            mychart[pro_name][type].ranges[vtype][field] = Number(thethis.value);
+            let data = [];
+            // 判断差值，差值小于0 ，提醒
+            let sub = mychart[pro_name][type].ranges['max'][field] - mychart[pro_name][type].ranges["min"][field];//差值
+            console.log(sub);
+            if (sub <= 0)
+                return console.log("最小值大于或等于最大值");
+            //判断数据列是否为空
+            if (mychart[pro_name][type].series != null) {
+                let series = mychart[pro_name][type].series;//记录
+                let length = series.length;//记录数量
+                let total = series[0].length;//记录内长度
+                let min = mychart[pro_name][type].ranges["min"][field];//最小值
+                for (let i = 0; i < length; i++) {
+                    let value = (series[i][index] - min) / sub;//计算相对值
+                    data.push([series[i][total - 1], value])
+                }
+                mychart[pro_name][type].chart.get(field).update({
+                    data: data
+                });//更新指定列数据
+                mychart[pro_name][type].chart.redraw();
+            }
+            $.ajax({
+                url: "./pagerange/",
+                type: "POST",
+                //返回值为[项目id，图表类型,max/min,字段名,值]
+                data: {'data': [mychart[pro_name].pro_id, type, vtype, field, thethis.value]},
+                success: function (data) {
+                }
+            })
+        }
+
+        setTimeout(function () {
+            cr_table('#table');
+            {#draw_pro('#projects');//项目#}
+            draw_field('on', '#on_fields');//在线
+            draw_field('off', '#off_fields');//离线
+            checkbox_save('collapse3', 'input', 'pro_on_fields');    //储存复选框选中的离线字段名
+            checkbox_save('collapse4', 'input', 'pro_off_fields');    //储存复选框选中的在线字段名
+            draw_checkbox();
+            get_all();//获取复选框中的项目，字段
+            create_graph();
+        }, 1);//创建复选框
+    </script>
+{% endblock %}

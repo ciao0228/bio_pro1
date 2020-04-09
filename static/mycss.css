@@ -1,0 +1,81 @@
+.style_span {
+    display: inline-block;
+    width: 24%;
+    height: 40px;
+}
+
+.style_span > input {
+    height: 80%;
+    width: 100%;
+    vertical-align: middle;
+}
+
+.style_span > select {
+    height: 80%;
+    width: 100%;
+    vertical-align: middle;
+}
+
+.style_span > h5 {
+    text-align: center;
+}
+
+.myspan {
+    display: inline-block;
+    width: 670px;
+    height: 300px;
+    resize: both;
+}
+
+.myspan > span {
+    display: inline-block;
+    width: 50%;
+    height: 100%;
+    overflow-y: auto;
+}
+
+.range {
+    width: 450px;
+    height: 300px;
+    overflow: auto;
+}
+
+.range > h5 {
+    display: inline-block;
+    width: 33%;
+}
+
+.range > h4 {
+    text-align: center;
+    display: inline-block;
+    width: 30%;
+}
+
+.range > input {
+    width: 30%;
+}
+
+.mydiv {
+    display: inline-block;
+    width: 95%;
+    resize: vertical;
+    overflow: auto;
+    border: 1px solid white;
+}
+
+.mydiv > div {
+    height: 80%;
+}
+
+.mydiv > span {
+    width: 18%;
+    height: 18%;
+}
+
+.ons {
+    border: 1px solid limegreen;
+}
+
+.offs {
+    border: 1px solid red
+}

@@ -1,0 +1,234 @@
+{% extends 'layout.html' %} {% load static %}
+{#{% extends "online_pro.html" %}#}
+{% block left_conter %}
+    <!--项目名-->
+    <div class="panel panel-success">
+        <div class="panel-heading">
+            <h4 class="panel-title">
+                <a data-toggle="collapse" data-parent="#accordion" href="#collapseTwo">已打开项目</a>
+            </h4>
+        </div>
+        <div id="collapseTwo" class="collapse">
+            <div id="collapse2" class="panel-body">
+                <div id="projects" style="max-height:285px;overflow:auto">
+                    {% for i in update_pro %}
+                        <li>{{ i }} </li>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    <!--在线-->
+    <div class="panel panel-info">
+        <div class="panel-heading">
+            <h4 class="panel-title">
+              <a data-toggle="collapse" data-parent="#accordion" href="#collapseThree">在线参数</a>
+            </h4>
+        </div>
+        <div id="collapseThree" class="collapse">
+            <div id="collapse3" class="panel-body" style="max-height:400px;padding-right: 0">
+                <div id="on_fields" style="max-height:300px;overflow:auto">
+                    {% for i in ons %}
+                        <a href="?type=on&field={{ i.chars }}">{{ i.meaning|safe }}</a><br>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    <!--离线-->
+    <div class="panel panel-warning">
+        <div class="panel-heading">
+            <h4 class="panel-title">
+                <a data-toggle="collapse" data-parent="#accordion" href="#collapseFour">离线参数</a>
+            </h4>
+        </div>
+        <div id="collapseFour" class="collapse">
+            <div id="off_fields" style="max-height:300px;overflow:auto">
+                {% for i in offs %}
+                    <a href="?type=off&field={{ i.chars }}">{{ i.meaning|safe }}</a><br>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+{% endblock %}
+{% block content %}
+    <title>{{ field_name|safe }} 实时参数</title>
+    <div id="container" style="min-width:400px; position: relative;">
+        <div class="mydiv" style="">
+            <div id="chart" style="height:550px;resize:vertical;overflow: auto;border-bottom: 1px solid black" onresize=resize()>
+            </div>
+            <span class="btn-group dropup">
+            <button class="btn btn-primary dropdown-toggle" data-toggle="dropdown" data-placement="top">图表样式</button>
+            <span class="dropdown-menu" style="width: 500px;height: 100px;float:left" onclick=event.stopPropagation()>
+                <span class="style_span">
+                    <h5>字段</h5>
+                    <select id="field" onchange=changefield(this.selectedIndex)>
+                        {% for i in update_pro %}
+                            <option>{{ i }}</option>
+                        {% endfor %}
+                    </select>
+                </span>
+                <span class="style_span">
+                    <h5>颜色</h5>
+                    <input id="color" type="color" onchange=changeStyle("color",this)>
+                </span>
+                <span class="style_span">
+                    <h5>线宽</h5>
+                    <input id="width" type="number" onchange=changeStyle("width",this)>
+                </span>
+                <span class="style_span">
+                    <h5>线型</h5>
+                    <select id="dash" onchange=changeStyle("dash",this)>
+                        {% for i in style %}
+                            <option>{{ i }}</option>
+                        {% endfor %}
+                    </select>
+                </span>
+            </span>
+            </span>
+        </div>
+    </div>
+    <script>
+
+        mychart = {
+            field: '{{ field }}',
+            field_name: "{{ field_name|safe }}",
+            type: '{{ the_type }}',
+            millisec: 10,
+            pro: {
+                {% for i in updating %}
+                    '{{ i.name }}': {
+                        millisec: 10,//刷新频率,秒
+                        last: {{ i.begin_time }},//最近刷新时间
+                        begin: {{ i.begin_time }},//起始时间
+                        range: {
+                            min:{{ i.min }},
+                            max:{{ i.max }},
+                        },
+                        {#range: {{ on|safe }},//在线范围#}
+                        {#id: null,//定时器id#}
+                        pro_id: {{ i.id }},//项目id
+                        {#chart: null,#}
+                        series: null,
+                        {#range: null,#}
+                    },
+                {% endfor %}
+            }
+        };
+
+        //获取参数数据，传输参数：类型，字段名，分组时间长度（小时），
+        function field_data(key) {
+            var f_data = {
+                the_type: mychart.type,
+                field: mychart.field,
+                last: mychart.pro[key].last,
+                time_length: 6,
+                pro_id: mychart.pro[key].pro_id
+            };
+            $.ajax({
+                type: 'POST',
+                url: "/field_data/",
+                data: f_data,
+                dataType: "json",
+                async: true,
+                success: function (data) {
+                    if (data.length === 0) {
+                        return false;
+                    } else {
+                        //定义二维数组，一维长度为56，即参数的个数，二维为字典{"data":[]}
+                        // 遍历数据加入字典{x,y,time,data}(相对时间，相对值，绝对时间，绝对值）
+                        {#let pro_data = data;#}
+                        mychart.pro[key].series = data;
+                        let series = mycharts.get(key);
+                        //时间差
+                        let length = mychart.pro[key].range.max <= mychart.pro[key].range.min;
+                        //初始化 二维数组
+                        if (length <= 0) {
+                            for (let i = 0; i < data.length; i++) {
+                                {#let value=#}
+                                series.addPoint([data[i][1] * 1000, data[i][0]], false);
+                                {#console.log([ data[i][0]*1000,data[i][1]]);#}
+                            }
+                        } else {
+
+                            for (let i = 0; i < data.length; i++) {
+                                {#let value=#}
+                                let value = (data[i][0] - mychart.pro[key].range.min) / length;
+                                series.addPoint([data[i][1] * 1000, value], false);
+                                {#console.log(value);#}
+                            }
+                        }
+                        //更新最近时间
+                        mychart.pro[key].last = data[data.length - 1][1];
+                        //重新渲染图表
+                        mycharts.redraw(false);
+                    }
+                }
+            })
+        }
+        the_options.series = [];
+        for (let key in mychart.pro) {
+            the_options.series.push({
+                type: "line",
+                name: key,
+                data: [],
+                id: key,
+                dashStyle: 'Solid',
+            })
+        }
+        the_options["title"] = {text: '{{field_name|safe}}'};
+        the_options.tooltip.formatter = function () {
+            //相对时间
+            let key = this.series.name;
+            let relative = (this.x - mychart.pro[key].begin * 1000) / 1000;
+            let hour = parseInt(relative / 3600);
+            let min = parseInt((relative % 3600) / 60);
+            let sec = relative % 60;
+            {#let xIndex = this.point.index;#}
+            let yIndex = this.series.index;
+            return this.series.name + "<br>" + hour + "时" + min + "分" + sec + '秒/' + myTimeToLocal(this.x) + "<br>" +
+                this.y + "/" + mychart.pro[key].series[yIndex][1];
+
+        };
+        mycharts = Highcharts.stockChart('chart', the_options);
+        for (let key in mychart.pro) {
+            field_data(key);
+        }
+        setInterval(function () {
+            for (let key in mychart.pro) {
+                field_data(key);
+            }
+        }, 10 * 1000);
+
+    //改变样式
+    function changeStyle(styletype) {
+        let id = '#'+ styletype;
+        let index = $('#field')[0].selectedIndex;
+        switch (styletype) {
+            case 'color':
+                mycharts.series[index].update(
+                    {color: $(id).val()}
+                );
+                break;
+            case 'width':
+                mycharts.series[index].update(
+                    {lineWidth: Number($(id).val())}
+                );
+                break;
+            case 'dash':
+                mycharts.series[index].update(
+                    {dashStyle: $(id).val()}
+                );
+                break;
+        }
+    }// 图例样式选择
+    function changefield(select) {
+        let value = mycharts.series[select];
+        $("#color").val(value.color);
+        $("#width").val(value.options.lineWidth);
+        $("#dash").val(value.options.dashStyle);
+    }
+    changefield(0)
+    </script>
+{% endblock %}
+{% block checkbox %}{% endblock %}

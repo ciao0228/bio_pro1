@@ -1,0 +1,58 @@
+<!DOCTYPE HTML>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://code.highcharts.com.cn/highcharts/highcharts.js"></script>
+    <script src="https://code.highcharts.com.cn/highcharts/modules/exporting.js"></script>
+</head>
+<body>
+<div id="container" style="min-width:400px;height:400px"></div>
+<script>
+    var chart = Highcharts.chart('container', {
+        chart: {
+            type: 'bar'
+        },
+        title: {
+            text: '参考车费'
+        },
+        xAxis: {
+            categories: ['徐家汇（东方商厦、港汇广场、太平洋百货)', '莘庄',
+                '陆家嘴（东方明珠、金茂大厦、正大广场）', '浦东八佰伴', '大拇指广场（联洋社区）',
+                '五角场', '月星环球港', '静安寺', '上海体育场（上海体育馆）', '锦江乐园',
+                '人民广场（城市规划馆、博物馆）', '豫园（城隍庙）', '外滩', '上海科技馆',
+                '上海南站', '上海火车站', '长途客运总站', '虹桥交通枢纽'
+            ]
+        },
+        yAxis: {
+            min: 0,
+            title: false
+        },
+        legend: {
+            /* 图例显示顺序反转
+             * 这是因为堆叠的顺序默认是反转的，可以设置
+             * yAxis.reversedStacks = false 来达到类似的效果
+             */
+            reversed: true
+        },
+        plotOptions: {
+            series: {
+                stacking: 'normal'
+            }
+        },
+        series: [{
+            name: '白天',
+            data: [180, 185, 165, 165, 165, 170, 215, 185, 180, 180, 180,
+                175, 185, 145, 145, 185, 185, 230],
+        }, {
+            name: '夜间',
+            data: [230, 240, 210, 210, 170, 215, 270, 240, 230, 220, 230,
+                220, 240, 180, 220, 240, 240, 290],
+        }],
+        credits: {
+            enabled: false
+        }
+    });
+</script>
+</body>
+</html>
