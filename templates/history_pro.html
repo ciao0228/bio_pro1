@@ -269,6 +269,7 @@
                 let name = chosen_name[i];
                 //获得项目名对应下的所有表格下的复选框
                 let one_pro = alls.getElementsByClassName(name);
+                mychart[name].on.field=[]
                 for (let j = 0; j < ons.length; j++) {
                     if (one_pro[j].checked) {
                         mychart[name].on.field.push(ons[j]);
@@ -276,6 +277,7 @@
                         mychart[name].on.ranges.max[one_pro[j].name] = 0;
                     }
                 }
+                mychart[name].off.field=[];
                 for (let j = ons.length; j < one_pro.length; j++) {
                     if (one_pro[j].checked) {
                         mychart[name].off.field.push(offs[j - ons.length]);
@@ -440,6 +442,8 @@
 
         //更新数据
         function create_graph() {
+            get_all();
+            $("#container").html("");
             for (let key in mychart) {
                 $('#' + key).empty();
                 if (mychart[key].on.field.length != 0) {
@@ -501,27 +505,16 @@
             $(div_id).after(div + field + color + width + dashStyle + '</div></span>');
             //输出按钮
             change_field_name(pro_name, type); //样式初始化
-        }//输入容器名，图表名称,创建图例按钮
+        }
+
+
+        //图例字段选择
         function change_field_name(pro_name, type) {
             let index = $('#' + pro_name + '_fields').get(0).selectedIndex;
             $('#' + pro_name + '_color').val(mychart[pro_name][type].chart.series[index].color);
             $('#' + pro_name + '_width').val(mychart[pro_name][type].chart.series[index].options.lineWidth);
             $('#' + pro_name + '_dash').val(mychart[pro_name][type].chart.series[index].options.dashStyle);
-        }//图例字段选择
-        function display_mode(div_id,) {
-            let option = '<option>分</option><option>时</option>';
-            if (t === 3600) option = '<option>时</option><option>分</option>';
-            let times = '<span class="btn-group"><span class="style_span" style="width:50%;margin:0">' +
-                '<h6 style="margin:0;text-align: center;">显示方式</h6><select name="time_length" style="height:60%;" ' +
-                '>' + option + '</select></span></span>';
-            $(div_id).after(times);
-        }//显示方式
-        //改变取值范围
-        function change_range(the, pro_name, the_type) {
-
-            console.log(the);
         }
-
         //vtype为"min"或"max"
         function range(pro_name, index, vtype, type, thethis) {
             let field = mychart[pro_name][type].field[index].chars.toLowerCase();
@@ -566,8 +559,6 @@
             checkbox_save('collapse3', 'input', 'pro_on_fields');    //储存复选框选中的离线字段名
             checkbox_save('collapse4', 'input', 'pro_off_fields');    //储存复选框选中的在线字段名
             draw_checkbox();
-            get_all();//获取复选框中的项目，字段
-            create_graph();
         }, 1);//创建复选框
     </script>
 {% endblock %}
