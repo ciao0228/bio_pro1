@@ -116,6 +116,7 @@
             }
         };
 
+
         //获取参数数据，传输参数：类型，字段名，分组时间长度（小时），
         function field_data(key) {
             var f_data = {
@@ -132,6 +133,7 @@
                 dataType: "json",
                 async: true,
                 success: function (data) {
+                    console.log(data);
                     if (data.length === 0) {
                         return false;
                     } else {

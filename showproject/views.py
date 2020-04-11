@@ -15,6 +15,10 @@ def view_render(request, html_name):
 
     if "name" in request.GET:
         name = request.GET["name"]
+    else:
+        updating = list(DataProject.objects.filter(update_flag=1).values("name", "begin_time"))  # 正在更新项目
+        if len(updating) > 0:
+            return HttpResponseRedirect('?name=' + updating[0]["name"])
     state = get_state()
     uploads = list(DataProject.objects.values_list('upload', flat=True).distinct())
     upload_id = request.GET.get('upload_id') if request.GET.get('upload_id') else '1'
