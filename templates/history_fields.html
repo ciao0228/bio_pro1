@@ -109,67 +109,30 @@
         }
     </style>{#    设置表格样式#}
     <script>
-        checkbox_save('dvCBs', 'input', 'vs');//保存复选框内容
-        function update_data(name, the_type) {
-            for (let i in field[the_type][name].pro_list) {
-                $.ajax({
-                    type: 'POST',
-                    url: "/his_field/",
-                    data: {field: name.toLowerCase(), the_type: the_type, pro_name:i},
-                    dataType: "json",
-                    traditional: true,
-                    async: true,
-                    success: function (data) {
-                        console.log(data);
-                        field[the_type][name].pro_list[i].range.min=data.min;
-                        field[the_type][name].pro_list[i].range.max=data.max;
-                        field[the_type][name].pro_list[i].series=data.data;
+        //图表属性
+        mychart = {
+            {% for i in ons %}
+                "{{ i.chars }}": {
+                    "field": "{{ i.chars }}",
+                    "field_name": "{{ i.meaning }}",
+                    type: 'on',
+                    pro_list: [],
+                    pro: {},
+                    chart: {}
+                },
+            {% endfor %}
+            {% for i in offs %}
+                '{{ i.chars }}': {
+                    "field": "{{ i.chars }}",
+                    "field_name": "{{ i.meaning }}",
+                    type: "off",
+                    pro: {},
+                    chart: {}
+                },
+            {% endfor %}
 
-                        let series =field[the_type][name].chart.get(i);
-                        let length = data.max-data.min;
-                        if(length>0){
-                            for(let j=0;j<field[the_type][name].pro_list[i].series.length;j++) {
-                                let value = (field[the_type][name].pro_list[i].series[j][1] - data.min) / length;
-                                series.addPoint([field[the_type][name].pro_list[i].series[j][0], value], false);
-                            }
-                            console.log(1)
-                        }
-                        else{
-                            for(let j=0;j<field[the_type][name].pro_list[i].series.length;j++) {
-                                series.addPoint(field[the_type][name].pro_list[i].series[j], false);
-                            }
-                            console.log(2)
-                        }
-                        field[the_type][name].chart.redraw();
-                        {#let length = field#}
-
-                    }
-                });
-            }
-        }
-
-        field = {
-            "on": {
-                {% for i in ons %}
-                    "{{ i.chars }}": {
-                        "field": "{{ i.chars }}",
-                        "field_name": "{{ i.meaning }}",
-                        pro_list: {},
-                        chart: {}
-                    },
-                {% endfor %}
-            },
-            "off": {
-                {% for i in offs %}
-                    "{{ i.chars }}": {
-                        "field": "{{ i.chars }}",
-                        "field_name": "{{ i.meaning }}",
-                        pro_list: {},
-                        chart: {}
-                    },
-                {% endfor %}
-            }
         };
+        //highchart样式
         the_option1 = {
             allowPointSelect: true,
             chart: {zoomType: 'xy'},
@@ -212,69 +175,186 @@
                     let yIndex = this.series.index;
                     //图表类型
                     {#let type = this.series.chart.renderTo.id.split("_")[0];#}
-                    let type="";
+                    let type = "";
                     //项目名称
                     let name = this.series.chart.renderTo.id;
-                    if(name in field.on)
-                        type='on';
-                    else type="off";
-                    console.log(type);
                     return this.series.name + "<br>" + hour + "时" + min + "分" + sec + '秒' + "<br>" +
-                        this.y + "/" + field[type][name].pro_list[this.series.name].series[xIndex][1];
+                        this.y + "/" + mychart[name].pro[this.series.name].series[xIndex][1];
                 }
             }
         };
 
+        //样式选择
+        function change(pro_name, style_type) {
+            let index = $('#' + pro_name + '_fields').get(0).selectedIndex;
+            console.log(mychart[pro_name].chart.series[index]);
+            switch (style_type) {
+                case 'color':
+                    mychart[pro_name].chart.series[index].update(
+                        {color: $('#' + pro_name + '_color').val()}
+                    );
+                    break;
+                case 'width':
+                    mychart[pro_name].chart.series[index].update(
+                        {lineWidth: Number($('#' + pro_name + '_width').val())}
+                    );
+                    break;
+                case 'dashStyle':
+                    mychart[pro_name].chart.series[index].update(
+                        {dashStyle: $('#' + pro_name + '_dash').val()}
+                    );
+                    break;
+            }
+        }
+
         //数据更新函数
+        function update_data(name, the_type) {
+            for (let j = 0; j < mychart[name].pro_list.length; j++) {
+                let i = mychart[name].pro_list[j];
+                if (mychart[name].pro[i].series != null) {
+                    let series = mychart[name].chart.get(i);
+                    let length = mychart[name].pro[i].range.max - mychart[name].pro[i].range.min;
+                    if (length > 0) {
+                        for (let j = 0; j < mychart[name].pro[i].series.length; j++) {
+                            let value = (mychart[name].pro[i].series[j][1] - mychart[name].pro[i].range.min) / length;
+                            series.addPoint([mychart[name].pro[i].series[j][0], value], false);
+                        }
+                    } else {
+                        for (let j = 0; j < mychart[name].pro[i].series.length; j++) {
+                            series.addPoint(mychart[name].pro[i].series[j], false);
+                        }
+                    }
+                    mychart[name].chart.redraw();
+                } else {
+                    $.ajax({
+                        type: 'POST',
+                        url: "/his_field/",
+                        data: {field: name.toLowerCase(), the_type: the_type, pro_name: i},
+                        dataType: "json",
+                        traditional: true,
+                        async: true,
+                        success: function (data) {
+                            console.log(data);
+                            mychart[name].pro[i].range.min = data.min;
+                            mychart[name].pro[i].range.max = data.max;
+                            mychart[name].pro[i].series = data.data;
+
+                            let series = mychart[name].chart.get(i);
+                            let length = mychart[name].pro[i].range.max - mychart[name].pro[i].range.min;
+                            if (length > 0) {
+                                for (let j = 0; j < mychart[name].pro[i].series.length; j++) {
+                                    let value = (mychart[name].pro[i].series[j][1] - mychart[name].pro[i].range.min) / length;
+                                    series.addPoint([mychart[name].pro[i].series[j][0], value], false);
+                                }
+                            } else {
+                                for (let j = 0; j < mychart[name].pro[i].series.length; j++) {
+                                    series.addPoint(mychart[name].pro[i].series[j], false);
+                                }
+                            }
+                            mychart[name].chart.redraw();
+
+                        }
+                    });
+                }
+            }
+        }
+
+        //获取 所选项目，字段
         function gets(the_type = 'on') {
             let data = ons;
             if (the_type === 'off') data = offs;
             for (let i = 0; i < data.length; i++) {
                 let name = data[i].chars;
                 let field_names = document.getElementsByName(data[i]['chars']);
-                {#console.log(field_names);#}
+                mychart[name].pro_list = [];
                 for (let j = 0; j < field_names.length; j++)
-                    if (field_names[j].checked)
-                        field[the_type][name].pro_list[field_names[j].className] = {
+                    if (field_names[j].checked) {
+                        mychart[name].pro_list.push(field_names[j].className);
+                        mychart[name].pro[field_names[j].className] = {
                             range: {
                                 min: 0,
                                 max: 0
                             },
                             series: null
                         };
+                    }
             }
-        } //获取 所选项目，字段
-        function create_graph() {
-            create('on');
-            create('off');
-        }//创建全部图表
-        function create(the_type = 'on') {
+        }
 
-            for (let f in field[the_type]) {
-                if (Object.keys(field[the_type][f].pro_list).length === 0) {
+        //创建全部图表
+        function create_graph() {
+            $('#container').html("");
+            gets("on");//获取复选框中的项目，字段
+            gets("off");
+            create();
+        }
+        //创建图表
+        function create() {
+            for (let f in mychart) {
+                if (mychart[f].pro_list.length === 0) {
                     continue;
                 }
                 //创建字段容器
-                $('#container').append('<div class="mydiv"><div id="' + f + '"></div></div>');
+                $('#container').append('<div id="' + f + '"></div>');
                 let series = [];
-                for (let key in field[the_type][f].pro_list) {
+                for (let key in mychart[f].pro) {
                     series.push({
                         name: key,
                         data: [],
                         dashStyle: 'Solid',
-                        id:key
+                        id: key
                     })
                 }
-                the_option1['title'] = {text: field[the_type][f].field_name};
+                the_option1['title'] = {text: mychart[f].field_name};
                 the_option1['series'] = series;
                 //生成图表
-                field[the_type][f].chart = Highcharts.chart(f, the_option1);
+                mychart[f].chart = Highcharts.chart(f, the_option1);
                 //获取数据
-                update_data(f, the_type);
+                console.log(mychart[f].type);
+                update_data(f, mychart[f].type);
+                create_button(f, mychart[f].type)
 
             }
         }//创建单类图表
+        //输入容器名，图表名称,创建图例按钮
+        function create_button(pro_name, type) {
+            let div_id = "#" + pro_name;
+            let options = '';
+            let div = '<span class="btn-group"><button class="btn btn-primary dropdown-toggle" data-toggle="dropdown">' +
+                '图表样式</button><div class="dropdown-menu" style="width: 500px;height: 100px;float:left" ' +
+                'onclick=event.stopPropagation()>';
+            for (let h = 0; h < mychart[pro_name].pro_list.length; h++) {
+                options += '<option>' + mychart[pro_name].pro_list[h] + '</option>';
+            }
+            let a = '<span class="style_span"><h5>字段</h5><select id="' + pro_name + '_fields" ' +
+                'onchange=change_field_name("' + pro_name + '","' + type + '")>' + options + '</select></span>';
+            //字段
+            let color = '<span class="style_span"><h5>颜色</h5><input id="' + pro_name + '_color" type="color" ' +
+                'onchange=change("' + pro_name + '","color","' + type + '")></span>';
+            //颜色
+            let width = '<span class="style_span"><h5>线宽</h5><input  id="' + pro_name + '_width" type="number"' +
+                ' onchange=change("' + pro_name + '","width","' + type + '")></span>';
+            //线宽
+            let dashs = '';
+            for (let h = 0; h < dashStyles.length; h++) {
+                dashs += '<option>' + dashStyles[h] + '</option>';
+            }
+            let dashStyle = '<span class="style_span"><h5>线型</h5><select id="' + pro_name + '_dash" onchange=change("'
+                + pro_name + '","dashStyle","' + type + '")>' + dashs + '</select></span>';
+            //线型
+            $(div_id).after(div + a + color + width + dashStyle + '</div></span>');
+            //输出按钮
+            change_field_name(pro_name, type); //样式初始化
+        }
+        //图例字段选择
+        function change_field_name(pro_name, type) {
+            let index = $('#' + pro_name + '_fields').get(0).selectedIndex;
+            $('#' + pro_name + '_color').val(mychart[pro_name].chart.series[index].color);
+            $('#' + pro_name + '_width').val(mychart[pro_name].chart.series[index].options.lineWidth);
+            $('#' + pro_name + '_dash').val(mychart[pro_name].chart.series[index].options.dashStyle);
+        }
         setTimeout(function () {
+            checkbox_save('dvCBs', 'input', 'vs');//保存复选框内容
             cr_table('#table');
             {#draw_pro('#projects');//项目#}
             draw_field('on', '#on_fields');//在线
@@ -282,8 +362,6 @@
             checkbox_save('collapse3', 'input', 'pro_on_fields');    //储存复选框选中的离线字段名
             checkbox_save('collapse4', 'input', 'pro_off_fields');    //储存复选框选中的在线字段名
             draw_checkbox();
-            gets("on");//获取复选框中的项目，字段
-            gets("off");
         }, 1);//创建复选框
     </script>
 {% endblock %}
