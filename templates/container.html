@@ -263,13 +263,14 @@
         name: "{{ name|safe }}",//项目名称
         on: {
             millisec: 10,//刷新频率,秒
-            last: Date.parse("{{ pro.begin_time|date:'Y-m-d H:i:s'}}") / 1000,//最近刷新时间
+            last: null,//最近刷新相对时间
             begin: Date.parse("{{ pro.begin_time|date:'Y-m-d H:i:s'}}") / 1000,//起始时间
             range: {{ on|safe }},//在线范围
             id: null,//定时器id
             pro_id: null,//项目id
             chart: null,
             series: null,
+            relativetime: null,
         },
         off: {
             range: {{ off|safe }},//离线范围
@@ -280,7 +281,7 @@
         end: null,
         upload:{{ pro.upload }},
         pro_id: {{ pro.id }},//项目id
-        gap: 60
+        gap: 6
     };
     //初始化
     Highcharts.setOptions({
@@ -402,8 +403,8 @@
 
                 //相对时间
                 let relative = (this.x - Date.parse(mychart.begintime)) / 1000;
-                let hour = parseInt(relative/3600);
-                let min = parseInt(relative%3600 / 60);
+                let hour = parseInt(relative / 3600);
+                let min = parseInt(relative % 3600 / 60);
                 let sec = relative % 60;
                 let xIndex = this.point.index;
                 let yIndex = this.series.index;
@@ -412,7 +413,7 @@
                 {#console.log(yIndex);#}
                 {#mychart[type].chart.update({navigator:{baseSeries:4}});#}
                 {#console.log(this.series.index);#}
-                return this.series.name + "<br>" +hour+'时'+ min + "分" + sec + '秒/' + myTimeToLocal(this.x) + "<br>" +
+                return this.series.name + "<br>" + hour + '时' + min + "分" + sec + '秒/' + myTimeToLocal(this.x) + "<br>" +
                     this.y + "/" + mychart[type].series[xIndex][yIndex + 6];
 
             }
@@ -467,7 +468,7 @@
 
     //更新数据
     //在线项目定时获取
-    function update_data(pro_name, the_type = 'on', gap = 60, url = "./online_data/") {
+    function update_data(pro_name, the_type = 'on', url = "./online_data/") {
         $.ajax({
             type: 'POST',
             url: url,
@@ -529,18 +530,17 @@
         })
     }
 
-    function first_get(pro_name, the_type = 'on', gap = 60, url = "./online_data/") {
+    function first_get(pro_name, the_type = 'on', url = "./online_data/") {
         $.ajax({
             type: 'POST',
             url: url,
-            data: {name: pro_name, type: the_type, last: mychart["on"].last, gap: mychart.gap},//项目名，项目类型，最近时间，图表间隔
+            data: {name: pro_name, type: the_type, last: mychart["on"].last, gap: mychart.gap,relative:mychart.on.relativetime},//项目名，项目类型，最近时间，图表间隔
             dataType: "json",
             async: true,
             success: function (data) {
-                console.log(data);
                 if (data.length === 0) {
-                    return false;
-                } else {
+                }
+                else {
                     //定义二维数组，一维长度为56，即参数的个数，二维为字典{"data":[]}
                     // 遍历数据加入字典{x,y,time,data}(相对时间，相对值，绝对时间，绝对值）
                     let pro_data = data;
@@ -587,6 +587,9 @@
                     //重新渲染图表
                     mychart[the_type].chart.redraw(false);
                 }
+                mychart.on.relativetime-=mychart.gap*60*60;
+                if(mychart.on.relativetime>0)
+                    first_get(pro_name,the_type,url);
             }
         })
     }
@@ -608,15 +611,11 @@
         the_options["series"] = series;
         mychart.on.chart = Highcharts.stockChart("on_chart", the_options);
         //初始化
-        //获取当前时间
-        let now = new Date().getTime() / 1000;
         //时间戳
-        let gaps = 6 * 60 * 60;
-        console.log(mychart.on.last);
-        for (; mychart.on.last+gaps < now; ) {
-            first_get(mychart.name, "on");
-            mychart.on.last = mychart.on.last + gaps;
-        }
+        mychart.on.relativetime = Date.parse(new Date()) / 1000 - mychart.on.begin;
+        mychart.on.last = Date.parse(new Date()) / 1000 - mychart.on.begin;
+        console.log(mychart.on.relativetime);
+        first_get(mychart.name, "on");
         mychart.on.id = setInterval(function () {
             update_data(mychart.name, "on")
         }, mychart.on.millisec * 1000);

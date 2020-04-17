@@ -149,7 +149,8 @@ def container(request):
         # print(request.GET["name"])
         name = request.GET["name"]
         # 获取项目id
-        pro_id = dict(list(DataProject.objects.values_list('name', 'id'))).get(request.GET["name"])
+        # pro_id = dict(list(DataProject.objects.values_list('name', 'id'))).get(request.GET["name"])
+        pro_id = DataProject.objects.filter(name=name).values_list("id",flat=1)[0]
         pro = DataProject.objects.filter(name=name).values()[0]
         print(pro)
         # 查找表中大小范围

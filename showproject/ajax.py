@@ -238,22 +238,27 @@ def online_data(request):
     # print(request.META)
     the_type = request.POST.get('type')
     the_name = request.POST.get('name')
+    gap = int(request.POST.get('gap'))
     a = dict(list(DataProject.objects.values_list('name', 'id'))).get(the_name)  # 获取项目id
     if the_type == 'on':
-        last = request.POST.get("last")
+
         db = pymysql.connect('127.0.0.1', 'root', '123456', 'db2')  # 连接数据库
         cursor = db.cursor()  # 创建游标
-
         # 第一次访问数据
-        if len(last) == 0:
-            sql1 = "select *,unix_timestamp(SAMPLE_TIME)  from data_online where PROJECT_id=" + str(a)
-        else:
+        if "relative" in request.POST:
             # 秒数 ,5个小时
-            time_length = 6 * 60 * 60
-            last2 = int(last) + time_length
+            relative=int(request.POST.get("relative"))
+            time_length = gap * 60 * 60
+            re1 = relative - time_length
             sql1 = "select *,unix_timestamp(SAMPLE_TIME)  from data_online where PROJECT_id=" + str(
-                a) + " and unix_timestamp(sample_time) > " + str(last) + " and unix_timestamp(sample_time) <= " + str(
-                last2)
+                a) + " and relativetime < " + str(relative) + " and relativetime >= " + str(re1)
+            print(sql1)
+        else:
+            last = request.POST.get("last")
+            time_length = gap * 60 * 60
+            last2 = int(last) - time_length
+            sql1 = "select *,unix_timestamp(SAMPLE_TIME)  from data_online where PROJECT_id=" + str(
+                a) + " and relativetime < " + str(last) + " and relativetime >= " + str(last2)
             # SQL语句
         # b= DataOnline.objects.filter(project_id=a).values_list()
         # print(b)
