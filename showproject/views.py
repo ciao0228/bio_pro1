@@ -8,6 +8,7 @@ import datetime
 from django.views.decorators.clickjacking import xframe_options_exempt
 
 
+
 @xframe_options_exempt
 def view_render(request, html_name):
     if "uname" not in request.session:
@@ -260,3 +261,6 @@ def register(request):
     else:
         # print(request.POST)
         return render(request, 'register.html')
+
+def c(request):
+    return JsonResponse({"cat":"cat"})

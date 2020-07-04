@@ -5,6 +5,7 @@ from . import views, ajax
 app_name = 'showproject'
 
 urlpatterns = [
+    url(r'^c$', views.c),
     url(r'^layout', views.layout),
     url(r'^upload', views.upload),  # 测试页面
     url(r'^history_fields', views.history_fields),
@@ -30,5 +31,6 @@ urlpatterns = [
     url(r"^pagerange", ajax.pagerange),
     url(r"^get_offdata", ajax.get_offdata),
     url(r'^save_values/', ajax.save_values),
+    
 
 ]

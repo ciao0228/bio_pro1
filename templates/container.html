@@ -271,11 +271,14 @@
             chart: null,
             series: null,
             relativetime: null,
+            sub: []
         },
         off: {
             range: {{ off|safe }},//离线范围
             series: [],
-            chart: null
+            chart: null,
+            sub: []
+
         },
         begintime: "{{ pro.begin_time|date:'Y-m-d H:i:s'}}",
         end: null,
@@ -402,6 +405,8 @@
             formatter: function () {
 
                 //相对时间
+                {#console.log(this.x);#}
+                {#console.log(mychart.begintime);#}
                 let relative = (this.x - Date.parse(mychart.begintime)) / 1000;
                 let hour = parseInt(relative / 3600);
                 let min = parseInt(relative % 3600 / 60);
@@ -420,6 +425,8 @@
             {#shared: true,#}
         },
     };
+    console.log(Date.parse(mychart.begintime));
+    console.log((mychart.begintime));
 
     //显示样式
     function change(value) {
@@ -520,7 +527,9 @@
                             }
                         }
                         //更新最后一次数据时间
-                        mychart["on"]["last"] = data.slice(-1)[0].slice(-1)[0];
+                        mychart["on"]["last"] = data.slice(-1)[0].slice(-1)[0]-mychart.on.begin;
+                        {#mychart["on"]["last"] = data.slice(-1)[0].slice(-1)[0];#}
+
                         //获取现在时间
                     }
                     //重新渲染图表
@@ -530,42 +539,32 @@
         })
     }
 
+    for (let i = 0; i < mychart.on.range.length; i++) {
+        mychart.on.sub.push(
+            mychart.on.range[i].max - mychart.on.range[i].min
+        )
+    }
+
+    worker = new Worker("static/worker.js");
+
     function first_get(pro_name, the_type = 'on', url = "./online_data/") {
+        {#console.log("1");#}
         $.ajax({
             type: 'POST',
             url: url,
-            data: {name: pro_name, type: the_type, last: mychart["on"].last, gap: mychart.gap,relative:mychart.on.relativetime},//项目名，项目类型，最近时间，图表间隔
+            data: {
+                name: pro_name,
+                type: the_type,
+                last: mychart["on"].last,
+                gap: mychart.gap,
+                relative: mychart.on.relativetime
+            },//项目名，项目类型，最近时间，图表间隔
             dataType: "json",
             async: true,
             success: function (data) {
+                {#console.log(data);#}
                 if (data.length === 0) {
-                }
-                else {
-                    //定义二维数组，一维长度为56，即参数的个数，二维为字典{"data":[]}
-                    // 遍历数据加入字典{x,y,time,data}(相对时间，相对值，绝对时间，绝对值）
-                    let pro_data = data;
-                    //初始化 二维数组
-                    let the_length = pro_data[0].length;
-                    let series = new Array(the_length - 6);
-                    for (let i = 0; i < the_length - 6; i++) {
-                        series[i] = [];
-                    }
-                    let range = mychart[the_type]["range"];
-                    for (let i = 0, current = pro_data[0][4], data_length = pro_data.length; i < data_length; i++) {
-                        current = pro_data[i][3];
-                        let j = 6;
-                        for (; j < the_length - 1; j++) {
-                            if (pro_data[i][j] != null) {
-                                //计算差值 添加数据
-                                if (range[j - 6].max > range[j - 6].min) {
-                                    let value = (pro_data[i][j] - range[j - 6].min) / (range[j - 6].max - range[j - 6].min);
-                                    mychart[the_type].chart.series[j - 6].addPoint([pro_data[i][the_length - 1] * 1000, value], false);
-                                } else {
-                                    mychart[the_type].chart.series[j - 6].addPoint([pro_data[i][the_length - 1] * 1000, pro_data[i][j]], false);
-                                }
-                            }
-                        }
-                    }
+                } else {
                     if (data.length !== 0) {
                         //数据列为空，即第一次请求数据
                         if (mychart["on"]["series"] == null) {
@@ -576,20 +575,39 @@
                         } else {
                             //数据不为空时，添加原始数据
                             if (data.length !== 0) {
-                                for (let i = 0; i < data.length; i++) {
-                                    mychart.on.series.push(
+                                for (let i = data.length - 1; i >= 0; i--) {
+                                    mychart.on.series.unshift(
                                         data[i]
                                     )
                                 }
                             }
                         }
                     }
-                    //重新渲染图表
-                    mychart[the_type].chart.redraw(false);
+                    //多线程传输数据
+                    worker.postMessage({data: mychart.on.series, range: mychart.on.range, sub: mychart.on.sub});
+                    //接收数据并返回的函数
+                    worker.onmessage = function (event) {
+                        {#alert(event.data);#}
+                        {#console.log(1);#}
+
+                        //对应添加每列数据
+                        for (let i = 0; i < mychart[the_type].range.length; i++) {
+                            mychart[the_type].chart.series[i].setData(event.data[mychart[the_type].range[i].chars], false)
+                        }
+                        //重新渲染图表
+                        mychart[the_type].chart.redraw();
+                        {#console.log(event.data);#}
+                    };
+                    //定义二维数组，一维长度为56，即参数的个数，二维为字典{"data":[]}
+                    // 遍历数据加入字典{x,y,time,data}(相对时间，相对值，绝对时间，绝对值）
                 }
-                mychart.on.relativetime-=mychart.gap*60*60;
-                if(mychart.on.relativetime>0)
-                    first_get(pro_name,the_type,url);
+                mychart.on.relativetime -= mychart.gap * 60 * 60;
+                if (mychart.on.relativetime > 0)
+                    first_get(pro_name, the_type, url);
+                else
+                    mychart.on.id = setInterval(function () {
+                        update_data(mychart.name, "on")
+                    }, mychart.on.millisec * 1000);
             }
         })
     }
@@ -615,10 +633,8 @@
         mychart.on.relativetime = Date.parse(new Date()) / 1000 - mychart.on.begin;
         mychart.on.last = Date.parse(new Date()) / 1000 - mychart.on.begin;
         console.log(mychart.on.relativetime);
+        {#work =new Work();#}
         first_get(mychart.name, "on");
-        mychart.on.id = setInterval(function () {
-            update_data(mychart.name, "on")
-        }, mychart.on.millisec * 1000);
         {#update_data(mychart.name, "on");#}
         changefield(0, "on");
 
